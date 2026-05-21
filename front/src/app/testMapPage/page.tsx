@@ -1,4 +1,4 @@
-import KakaoMapScriptProvider from "../components/KakaoMapScriptProvider";
+import KakaoMapScriptProvider from "../../providers/KakaoMapScriptProvider";
 import Map from "./components/Map";
 
 export default function page() {
