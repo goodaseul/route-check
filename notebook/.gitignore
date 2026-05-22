@@ -1,0 +1,16 @@
+# 가상환경
+.venv/
+venv/
+
+# 주피터 노트북 임시 체크포인트 파일
+.ipynb_checkpoints/
+
+# 분석 과정에서 생기는 대용량 임시 데이터나 로그
+# *.log
+# data/raw/large_backup_file.csv
+
+# 맥북 사용자라면 필수
+.DS_Store
+
+# 기타
+.env
