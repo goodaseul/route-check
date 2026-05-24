@@ -10,15 +10,6 @@ API_KEY = os.getenv("TOUR_API_DECODE_KEY")
 BASE_URL = "https://apis.data.go.kr/B551011/KorService2"
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(CURRENT_DIR, "../data/category.json")
-
-
-try:
-    with open(DATA_PATH, "r", encoding="utf-8") as f:
-        CATEGORY_DATA = json.load(f)
-except Exception as e:
-    print(f"category.json 로드 실패: {e}")
-    CATEGORY_DATA = {}
 
 
 def fetch_api_data(endpoint: str, params: dict = None) -> pd.DataFrame:
@@ -81,9 +72,6 @@ def get_unified_search(keyword: str) -> list:
             
             # 신형 분류 체계 코드 추출 (lclsSystm3)
             lcls_code = str(row_dict.get("lclsSystm3") or row_dict.get("lcls_systm3") or "").strip()
-            
-            # 신형 코드로 로컬 마스터 데이터(category.json) 실시간 매칭
-            category_info = CATEGORY_DATA.get(lcls_code, {"대분류명": "기타", "중분류명": "기타"})
             
             # 불필요한 필드 및 삭제 예정 필드 도려내기
             row_dict.pop("areaCode", None)
