@@ -1,0 +1,38 @@
+services:
+  # 백엔드 컨테이너 서비스
+  backend:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+    container_name: routecheck-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./back:/app
+    environment:
+      - TOUR_API_DECODE_KEY=${TOUR_API_DECODE_KEY}
+    networks:
+      - routecheck-network
+
+  # 프론트엔드 컨테이너 서비스
+  frontend:
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+    container_name: routecheck-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./front:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - routecheck-network
+
+networks:
+  routecheck-network:
+    driver: bridge
