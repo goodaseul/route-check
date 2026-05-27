@@ -12,7 +12,7 @@ BASE_URL = "https://apis.data.go.kr/B551011/KorService2"
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def fetch_api_data(endpoint: str, params: dict = None) -> pd.DataFrame:
+def fetch_api_data(endpoint: str, params: dict = None) -> tuple[pd.DataFrame, int]:
     url = f"{BASE_URL}/{endpoint}"
     default_params = {
         "serviceKey": API_KEY,
@@ -29,11 +29,12 @@ def fetch_api_data(endpoint: str, params: dict = None) -> pd.DataFrame:
         print(f"[DEBUG] 서버 응답 원본: {response.text[:200]}")
 
         if response.status_code != 200:
-            return pd.DataFrame()
+            return pd.DataFrame(), 0
         
         res_json = response.json()
         if 'response' in res_json:
             body = res_json['response'].get('body', {})
+            total_count = int(body.get('totalCount', 0))
             items = body.get('items', {})
 
             if items and 'item' in items:
@@ -43,12 +44,13 @@ def fetch_api_data(endpoint: str, params: dict = None) -> pd.DataFrame:
                 if isinstance(item_list, dict):
                     item_list = [item_list]
 
-                return pd.DataFrame(item_list)
-        return pd.DataFrame()
+                return pd.DataFrame(item_list), total_count
+            return pd.DataFrame(), total_count
+        return pd.DataFrame(), 0
     except Exception:
-        return pd.DataFrame()
+        return pd.DataFrame(), 0
 
-def get_unified_search(keyword: str) -> list:
+def get_unified_search(keyword: str, num_of_rows: int = 100, page_no: int = 1) -> tuple[list, int]:
     """
     [통합 검색 핵심 비즈니스 로직]
     - searchKeyword2 API는 키워드 하나로 관광지/숙소/축제를 모두 검색할 수 있는 API
@@ -57,12 +59,12 @@ def get_unified_search(keyword: str) -> list:
     
     params = {
         "keyword": keyword, 
-        "numOfRows": 30, 
-        "pageNo": 1, 
-        "arrange": "C"
+        "numOfRows": num_of_rows, 
+        "pageNo": page_no, 
+        "arrange": "A"
     }
 
-    df = fetch_api_data(endpoint="searchKeyword2", params=params)
+    df, total_count = fetch_api_data(endpoint="searchKeyword2", params=params)
     
     if not df.empty:
         for _, row in df.iterrows():
@@ -82,4 +84,4 @@ def get_unified_search(keyword: str) -> list:
             
             unified_results.append(row_dict)
                 
-    return unified_results
+    return unified_results, total_count
