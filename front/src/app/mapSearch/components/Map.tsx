@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Map, MapMarker } from "react-kakao-maps-sdk";
 
 interface PlaceType {
@@ -11,53 +11,30 @@ interface PlaceType {
   lng: number;
 }
 
-export default function MapPage() {
-  // 최종 주소값
-  const [addressInput, setAddressInput] = useState<string>("");
+interface MapPageProps {
+  keyword: string;
+  setKeyword: (value: string) => void;
+}
 
+export default function MapPage({ keyword, setKeyword }: MapPageProps) {
   const [showMap, setShowMap] = useState<boolean>(false);
-  const [keyword, setKeyword] = useState<string>("");
-
-  // 지도 중심 좌표 (현재: 서울시청)
-  // ** 외부에서 지역을 먼저 선택했을 때 중심 좌표 바꿔지게 하기
+  const [mapKeyword, setMapKeyword] = useState<string>("");
   const [center, setCenter] = useState({ lat: 37.566826, lng: 126.9786567 });
-
-  // 유저가 지도에 핀 꽂은 장소
   const [selectedPlace, setSelectedPlace] = useState<PlaceType | null>(null);
 
-  const handleAddressInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setAddressInput(value);
-
-    if (selectedPlace) {
-      setSelectedPlace(null);
-    }
-  };
-
-  const handleClearAddress = () => {
-    setAddressInput("");
-    setSelectedPlace(null);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
+  const handleMapSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!keyword.trim()) return;
-
-    if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services) {
-      alert("지도 라이브러리가 아직 로드되지 않았습니다.");
-      return;
-    }
+    if (!mapKeyword.trim()) return;
+    if (!window.kakao?.maps?.services) return;
 
     const ps = new window.kakao.maps.services.Places();
-
-    ps.keywordSearch(keyword, (data, status) => {
+    ps.keywordSearch(mapKeyword, (data, status) => {
       if (status === window.kakao.maps.services.Status.OK) {
         const firstPlace = data[0];
         const newCenter = {
           lat: parseFloat(firstPlace.y),
           lng: parseFloat(firstPlace.x),
         };
-
         setCenter(newCenter);
         setSelectedPlace({
           place_name: firstPlace.place_name,
@@ -93,10 +70,9 @@ export default function MapPage() {
         ps.keywordSearch(
           addressName,
           (places, placeStatus) => {
-            let placeName = roadAddressName || addressName; // 기본값은 주소
+            let placeName = roadAddressName || addressName;
 
             if (placeStatus === window.kakao.maps.services.Status.OK) {
-              // 가장 가까운 장소 찾기
               const nearest = places.reduce((prev, curr) => {
                 const prevDist =
                   Math.abs(parseFloat(prev.y) - lat) +
@@ -111,7 +87,6 @@ export default function MapPage() {
                 Math.abs(parseFloat(nearest.y) - lat) +
                 Math.abs(parseFloat(nearest.x) - lng);
 
-              // 충분히 가까우면 장소명 사용 (약 50m 이내)
               if (dist < 0.0005) {
                 placeName = nearest.place_name;
               }
@@ -134,32 +109,32 @@ export default function MapPage() {
 
   const handleApplyAddress = () => {
     if (!selectedPlace) return;
-
     const finalAddress =
       selectedPlace.place_name ||
       selectedPlace.road_address_name ||
       selectedPlace.address_name;
-    setAddressInput(finalAddress);
+    setKeyword(finalAddress);
     setShowMap(false);
   };
 
   return (
-    <div className="w-full max-w-md p-6 bg-white text-black rounded-lg shadow-md mx-auto mt-10">
+    <div className="w-full max-w-md p-6 bg-white text-black rounded-lg shadow-md mx-auto">
+      {/* 상단 input + 지도 열기 버튼 */}
       <div className="flex gap-2 mb-4">
         <div className="relative flex-1">
           <input
             type="text"
-            value={addressInput}
-            onChange={handleAddressInputChange}
-            placeholder="주소 검색 또는 지도를 클릭하세요"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="검색어를 입력하세요"
             className="w-full pl-3 pr-8 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-sm focus:outline-none focus:ring-1 focus:ring-yellow-400"
           />
-          {addressInput && (
+          {keyword && (
             <button
               type="button"
-              onClick={handleClearAddress}
+              onClick={() => setKeyword("")}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-              aria-label="주소 삭제"
+              aria-label="검색어 삭제"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -187,14 +162,16 @@ export default function MapPage() {
         </button>
       </div>
 
+      {/* 지도 영역 */}
       {showMap && (
         <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 space-y-3">
-          <form onSubmit={handleSearch} className="flex gap-2">
+          {/* 지도 전용 검색창 */}
+          <form onSubmit={handleMapSearch} className="flex gap-2">
             <input
               type="text"
               placeholder="Ex) 강일중학교, 역삼역 맛집"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
+              value={mapKeyword}
+              onChange={(e) => setMapKeyword(e.target.value)}
               className="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm"
             />
             <button
@@ -205,7 +182,7 @@ export default function MapPage() {
             </button>
           </form>
 
-          <div className="w-full h-64 rounded-md overflow-hidden shadow-inner relative">
+          <div className="w-full h-64 rounded-md overflow-hidden shadow-inner">
             <Map
               center={center}
               style={{ width: "100%", height: "100%" }}
