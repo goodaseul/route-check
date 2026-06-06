@@ -4,7 +4,7 @@ import { SearchResponse } from "@/api/types/search";
 import KakaoMapScriptProvider from "@/providers/KakaoMapScriptProvider";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import MapPage from "./components/Map";
+import MapPage from "./_components/Map";
 
 export default function MapSearchPage() {
   const [data, setData] = useState<SearchResponse | null>(null);
