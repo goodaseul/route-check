@@ -12,9 +12,7 @@ export default function MapSearchPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!keyword.trim()) {
-      return;
-    }
+    if (!keyword.trim()) return;
 
     const timer = setTimeout(async () => {
       setLoading(true);
