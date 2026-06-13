@@ -28,8 +28,9 @@ services:
       - /app/node_modules
       - /app/.next
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
       - NEXT_PUBLIC_KAKAO_MAP_KEY=${NEXT_PUBLIC_KAKAO_MAP_KEY}
+      - BACKEND_HOST=backend
+      - BACKEND_PORT=${BACKEND_PORT}
     depends_on:
       - backend
     networks:
