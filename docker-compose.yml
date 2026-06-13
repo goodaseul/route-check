@@ -22,12 +22,14 @@ services:
     container_name: routecheck-frontend
     ports:
       - "3000:3000"
+    command: npm run dev
     volumes:
       - ./front:/app
       - /app/node_modules
       - /app/.next
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_KAKAO_MAP_KEY=${NEXT_PUBLIC_KAKAO_MAP_KEY}
     depends_on:
       - backend
     networks:
