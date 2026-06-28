@@ -38,7 +38,7 @@ export function useAdminRagFiles(options?: { refetchInterval?: number }) {
   return useQuery<RagFilesResponse>({
     queryKey: adminRagKeys.files(),
     queryFn: ({ signal }) =>
-      fetchAdminApiJson<RagFilesResponse>("/api/v2/admin/rag/files", { signal }),
+      fetchAdminApiJson<RagFilesResponse>("/api/admin/rag/files", { signal }),
     ...options,
   });
 }
@@ -50,7 +50,7 @@ export function useUploadRagFiles() {
       const formData = new FormData();
       formData.append("file", file);
       
-      const response = await fetchAdminApi("/api/v2/admin/rag/upload", {
+      const response = await fetchAdminApi("/api/admin/rag/upload", {
         method: "POST",
         body: formData,
       });
@@ -74,7 +74,7 @@ export function useDeleteRagFile() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: async (fileName: string) => {
-      const response = await fetchAdminApi(`/api/v2/admin/rag/files/${encodeURIComponent(fileName)}`, {
+      const response = await fetchAdminApi(`/api/admin/rag/files/${encodeURIComponent(fileName)}`, {
         method: "DELETE",
       });
       if (!response.ok) {
@@ -96,7 +96,7 @@ export function useBuildPdfVector() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: async (filename: string) => {
-      const response = await fetchAdminApi("/api/v2/admin/rag/build-pdf", {
+      const response = await fetchAdminApi("/api/admin/rag/build-pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filename }),
@@ -120,7 +120,7 @@ export function usePurifyCsv() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, void>({
     mutationFn: async () => {
-      const response = await fetchAdminApi("/api/v2/admin/rag/purify-csv", {
+      const response = await fetchAdminApi("/api/admin/rag/purify-csv", {
         method: "POST",
       });
       if (!response.ok) {
@@ -142,7 +142,7 @@ export function useSyncCharacterDb() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, void>({
     mutationFn: async () => {
-      const response = await fetchAdminApi("/api/v2/admin/rag/sync-db", {
+      const response = await fetchAdminApi("/api/admin/rag/sync-db", {
         method: "POST",
       });
       if (!response.ok) {

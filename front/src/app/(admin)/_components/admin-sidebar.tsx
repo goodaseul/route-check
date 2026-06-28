@@ -25,7 +25,7 @@ export function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
     setIsLoggingOut(true);
 
     try {
-      await fetchAdminApi("/api/v2/admin/auth/session/logout", { method: "POST" });
+      await fetchAdminApi("/api/admin/auth/session/logout", { method: "POST" });
     } finally {
       queryClient.clear();
       onMobileClose();

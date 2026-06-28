@@ -14,8 +14,37 @@ export default function AdminLoginPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    router.replace("/admin");
-    router.refresh();
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      const formData = new FormData(event.currentTarget);
+      const response = await fetchAdminApi("/api/admin/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: formData.get("username"),
+          password: formData.get("password"),
+        }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json()) as { detail?: unknown };
+        setErrorMessage(
+          typeof data.detail === "string"
+            ? data.detail
+            : "로그인 요청을 처리하지 못했습니다.",
+        );
+        return;
+      }
+
+      router.replace("/admin");
+      router.refresh();
+    } catch {
+      setErrorMessage("로그인 요청 중 오류가 발생했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (

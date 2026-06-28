@@ -20,7 +20,7 @@ function adminUsersPath(page: number, pageSize: AdminPageSize) {
     page: String(page),
     page_size: String(pageSize),
   });
-  return `/api/v2/admin/admin-users?${params.toString()}`;
+  return `/api/admin/admin-users?${params.toString()}`;
 }
 
 function fetchAdminUserList(page: number, pageSize: AdminPageSize, signal?: AbortSignal) {
@@ -46,7 +46,7 @@ export function useCreateAdminUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: AdminUserWrite) =>
-      fetchAdminApiJson<AdminUserListItem>("/api/v2/admin/admin-users", {
+      fetchAdminApiJson<AdminUserListItem>("/api/admin/admin-users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -59,7 +59,7 @@ export function useUpdateAdminUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, body }: { id: number; body: AdminUserWrite }) =>
-      fetchAdminApiJson<AdminUserListItem>(`/api/v2/admin/admin-users/${id}`, {
+      fetchAdminApiJson<AdminUserListItem>(`/api/admin/admin-users/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -72,7 +72,7 @@ export function useDeleteAdminUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) =>
-      fetchAdminApiJson<AdminUserListItem>(`/api/v2/admin/admin-users/${id}`, {
+      fetchAdminApiJson<AdminUserListItem>(`/api/admin/admin-users/${id}`, {
         method: "DELETE",
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: adminAdminUserKeys.all }),
