@@ -1,6 +1,7 @@
 import {
   Database,
   UserCog,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,8 +24,11 @@ export const adminNavGroups: AdminNavGroup[] = [
     ],
   },
   {
-    label: "어드민",
-    items: [{ title: "어드민 회원", href: "/admin/admins", icon: UserCog }],
+    label: "사용자 및 어드민",
+    items: [
+      { title: "사용자 관리", href: "/admin/users", icon: Users },
+      { title: "어드민 관리", href: "/admin/admins", icon: UserCog },
+    ],
   },
 ];
 

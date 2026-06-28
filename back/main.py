@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 # from routers.search import router as search_router
 from routers.admin.auth import router as admin_auth_router
 from routers.admin.user import router as admin_user_router
+from routers.admin.user_management import router as user_management_router
+from routers.auth import router as auth_router
 # from scheduler import start_scheduler
 
 from db.database import Base, engine, SessionLocal
@@ -73,6 +75,8 @@ app.add_middleware(
 # app.include_router(search_router)
 app.include_router(admin_auth_router)
 app.include_router(admin_user_router)
+app.include_router(user_management_router)
+app.include_router(auth_router)
 
 @app.get("/")
 def read_root():
