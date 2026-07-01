@@ -15,12 +15,19 @@ export default function MapSearchPage() {
   const debouncedKeyword = useDebounced(keyword, 300);
 
   useEffect(() => {
-    if (!debouncedKeyword.trim()) return;
+    if (!debouncedKeyword.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setData(null);
+      return;
+    }
 
     const search = async () => {
       setLoading(true);
+      console.log("검색 시간");
       try {
         const result = await fetchSearch(debouncedKeyword);
+        console.timeEnd("검색시간");
+
         setData(result);
       } finally {
         setLoading(false);
