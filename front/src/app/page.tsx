@@ -1,56 +1,22 @@
 "use client";
 
-import { useGoogleLogin } from "@react-oauth/google";
-import LoginButton from "./components/common/LoginButton";
-import fetchLoginGoogle from "@/api/loginGoogle";
-
-interface GoogleUserInfo {
-  sub: string;
-  email: string;
-  name: string;
-  picture: string;
-}
+import GoogleLogin from "./components/features/login/GoogleLogin";
+import NaverLogin from "./components/features/login/NaverLogin";
 
 export default function Home() {
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      try {
-        // 1. access_token으로 구글에 유저 정보 요청
-        const res = await fetch(
-          "https://www.googleapis.com/oauth2/v3/userinfo",
-          {
-            headers: {
-              Authorization: `Bearer ${tokenResponse.access_token}`,
-            },
-          },
-        );
-        const userInfo: GoogleUserInfo = await res.json();
-
-        // 2. 우리 백엔드로 로그인 요청
-        const result = await fetchLoginGoogle({
-          auth_provider: "google",
-          provider_user_id: userInfo.sub,
-          email: userInfo.email,
-          name: userInfo.name,
-          nickname: userInfo.name,
-          profile_image: userInfo.picture,
-        });
-
-        return result;
-        // console.log("로그인 성공:", result);
-      } catch (error) {
-        console.error("로그인 처리 중 오류:", error);
-      }
-    },
-    onError: () => {
-      alert("구글 로그인에 실패했습니다.");
-    },
-  });
-
   return (
     <div className="">
       <main className="py-32 px-16">
-        <LoginButton onClick={() => googleLogin()}>Google</LoginButton>
+        <div className="flex items-center gap-2">
+          <GoogleLogin />
+          <NaverLogin
+            onLoginSuccess={(result) => {
+              console.log("메인 화면에서 로그인 결과 받음:", result);
+              // 여기서 로그인 상태 저장 (전역 상태, localStorage에 토큰 저장 등)
+              // 화면도 "로그인됨" 상태로 바뀌게
+            }}
+          />
+        </div>
       </main>
     </div>
   );

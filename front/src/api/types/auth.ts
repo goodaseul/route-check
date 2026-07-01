@@ -1,4 +1,4 @@
-export interface GoogleLoginRequest {
+export interface LoginRequest {
   auth_provider: string;
   provider_user_id: string;
   email: string;
@@ -7,7 +7,7 @@ export interface GoogleLoginRequest {
   profile_image: string;
 }
 
-export interface GoogleLoginResponse {
+export interface LoginResponse {
   id: number;
   email: string;
   name: string;
