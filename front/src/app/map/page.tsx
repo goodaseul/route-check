@@ -23,11 +23,8 @@ export default function MapSearchPage() {
 
     const search = async () => {
       setLoading(true);
-      console.log("검색 시간");
       try {
         const result = await fetchSearch(debouncedKeyword);
-        console.timeEnd("검색시간");
-
         setData(result);
       } finally {
         setLoading(false);

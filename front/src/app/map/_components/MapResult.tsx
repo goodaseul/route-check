@@ -27,7 +27,8 @@ export default function MapResult({ loading, data }: MapResultProps) {
                     src={item.firstimage2}
                     alt={item.title}
                     fill
-                    style={{ objectFit: "cover", borderRadius: "0.375rem" }}
+                    sizes="80px"
+                    style={{ objectFit: "cover", borderRadius: "6px" }}
                   />
                 </div>
               )}
