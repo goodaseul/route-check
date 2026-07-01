@@ -1,40 +1,14 @@
-"use client";
-import fetchSearch from "@/api/search";
 import { SearchResponse } from "@/api/types/search";
-import KakaoMapScriptProvider from "@/providers/KakaoMapScriptProvider";
 import Image from "next/image";
-import { useEffect, useState } from "react";
-import MapPage from "./_components/Map";
 
-export default function MapSearchPage() {
-  const [data, setData] = useState<SearchResponse | null>(null);
-  const [keyword, setKeyword] = useState("");
-  const [loading, setLoading] = useState(false);
+interface MapResultProps {
+  loading: boolean;
+  data: SearchResponse | null;
+}
 
-  useEffect(() => {
-    if (!keyword.trim()) return;
-
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const result = await fetchSearch(keyword);
-        setData(result);
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [keyword]);
-
+export default function MapResult({ loading, data }: MapResultProps) {
   return (
-    <div className="w-full max-w-md mx-auto mt-10 space-y-4">
-      {/* 검색 input + 지도는 MapPage 안에 있는 UI 그대로 활용 */}
-      <KakaoMapScriptProvider>
-        <MapPage keyword={keyword} setKeyword={setKeyword} />
-      </KakaoMapScriptProvider>
-
-      {/* 투어 API 결과 리스트 */}
+    <>
       {loading && <p className="text-sm text-gray-500">검색 중...</p>}
       {data && (
         <p className="text-sm text-gray-600">총 {data.total_count}개 결과</p>
@@ -65,6 +39,6 @@ export default function MapSearchPage() {
           </div>
         </div>
       ))}
-    </div>
+    </>
   );
 }
