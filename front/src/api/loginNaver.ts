@@ -1,4 +1,4 @@
-import fetcher from "./fetcher";
+import fetcher from "@/lib/api/fetcher";
 import { LoginRequest, LoginResponse } from "./types/auth";
 
 export default function fetchLoginNaver(
