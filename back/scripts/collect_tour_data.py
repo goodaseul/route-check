@@ -251,15 +251,42 @@ def collect_data():
         df_area_list_all['mapx_num'] = pd.to_numeric(df_area_list_all['mapx'].replace("null", None).replace("", None), errors='coerce')
         df_area_list_all['mapy_num'] = pd.to_numeric(df_area_list_all['mapy'].replace("null", None).replace("", None), errors='coerce')
 
+        # 1. 위경도 뒤바뀐 데이터 보정 (mapx가 위도 33~39 범위이고 mapy가 경도 124~132 범위인 경우 swap)
+        swapped_mask = (df_area_list_all['mapx_num'] >= 33.0) & (df_area_list_all['mapx_num'] <= 39.0) & \
+                       (df_area_list_all['mapy_num'] >= 124.0) & (df_area_list_all['mapy_num'] <= 132.0)
+        logger.info(f"위경도 뒤바뀜 감지 및 자동 보정 대상 행 개수: {swapped_mask.sum()}개")
+        
+        if swapped_mask.sum() > 0:
+            temp_x = df_area_list_all.loc[swapped_mask, 'mapx_num'].copy()
+            df_area_list_all.loc[swapped_mask, 'mapx_num'] = df_area_list_all.loc[swapped_mask, 'mapy_num']
+            df_area_list_all.loc[swapped_mask, 'mapy_num'] = temp_x
+            df_area_list_all.loc[swapped_mask, 'mapx'] = df_area_list_all.loc[swapped_mask, 'mapx_num'].astype(str)
+            df_area_list_all.loc[swapped_mask, 'mapy'] = df_area_list_all.loc[swapped_mask, 'mapy_num'].astype(str)
+
+        # 2. 결측치 및 한국 범위 외부 이상치 필터링
         invalid_coords_mask = (
             df_area_list_all['mapx_num'].isna() |
             df_area_list_all['mapy_num'].isna() |
             (df_area_list_all['mapx_num'] == 0) |
-            (df_area_list_all['mapy_num'] == 0)
+            (df_area_list_all['mapy_num'] == 0) |
+            (df_area_list_all['mapx_num'] < 124.0) | (df_area_list_all['mapx_num'] > 132.0) |
+            (df_area_list_all['mapy_num'] < 33.0) | (df_area_list_all['mapy_num'] > 39.0)
         )
-        logger.info(f"유효하지 않은 좌표 개수 (제거 대상): {invalid_coords_mask.sum()}")
+        logger.info(f"유효하지 않은 좌표 개수 (제거 대상 - 0, null, 한국 범위 외): {invalid_coords_mask.sum()}")
         df_area_list_all = df_area_list_all[~invalid_coords_mask].copy()
         df_area_list_all.drop(columns=['mapx_num', 'mapy_num'], inplace=True, errors='ignore')
+
+        # 3. 장소명(title) HTML 태그 및 불필요 대괄호 설명 정제
+        import re
+        def clean_title(t):
+            if not isinstance(t, str):
+                return ""
+            t = re.sub(r'<[^>]*>', '', t)
+            t = re.sub(r'\[[^\]]*\]', '', t)
+            return t.strip()
+
+        df_area_list_all['title'] = df_area_list_all['title'].apply(clean_title)
+        logger.info(f"좌표 이상치 정제 및 명소명 HTML/대괄호 정제 완료. 최종 아이템 수: {len(df_area_list_all)}")
 
         # 2. ldongCode2
         logger.info("ldongCode2 데이터 수집을 시작합니다...")
@@ -406,6 +433,24 @@ def collect_data():
         df_final['contenttypename'] = df_final['contenttypeid'].astype(str).str.strip().map(content_type_map)
 
         df_main_export = df_final.copy()
+
+        # 1. 여행 코스 분리 및 제거
+        df_courses = df_main_export[df_main_export['contenttypename'] == '여행 코스'].copy()
+        df_main_export = df_main_export[df_main_export['contenttypename'] != '여행 코스'].copy()
+        logger.info(f"여행 코스 분리 완료: {len(df_courses)}행 제외됨 (단일 POI 장소만 유지)")
+
+        # 2. 물리적 좌표(소수점 4자리 반올림) 및 유사 장소명 중복 제거
+        df_main_export['mapx_round'] = df_main_export['mapx'].astype(float).round(4)
+        df_main_export['mapy_round'] = df_main_export['mapy'].astype(float).round(4)
+        df_main_export['has_image'] = df_main_export['firstimage'].notna().astype(int)
+        df_main_export.sort_values(by=['mapx_round', 'mapy_round', 'title', 'has_image'], ascending=[True, True, True, False], inplace=True)
+
+        before_count = len(df_main_export)
+        df_main_export.drop_duplicates(subset=['mapx_round', 'mapy_round', 'title'], keep='first', inplace=True)
+        df_main_export.drop(columns=['mapx_round', 'mapy_round', 'has_image'], inplace=True, errors='ignore')
+        logger.info(f"중복 장소 제거 완료: {before_count}행 -> {len(df_main_export)}행 (제거 건수: {before_count - len(df_main_export)}행)")
+
+        # 3. 불필요한 코드 컬럼들 제거
         cols_to_drop = ['lDongRegnCd', 'lDongSignguCd', 'lclsSystm1', 'lclsSystm2', 'lclsSystm3', 'contenttypeid']
         df_main_export.drop(columns=cols_to_drop, inplace=True, errors='ignore')
 
@@ -414,9 +459,12 @@ def collect_data():
         df_main_export = df_main_export[front_cols + remaining_cols]
 
         path_main_csv = os.path.join(DATA_DIR, "관광정보_메인_장소_데이터.csv")
+        path_course_csv = os.path.join(DATA_DIR, "관광정보_여행코스_참조_데이터.csv")
         os.makedirs(DATA_DIR, exist_ok=True)
         df_main_export.to_csv(path_main_csv, index=False, encoding='utf-8-sig')
+        df_courses.to_csv(path_course_csv, index=False, encoding='utf-8-sig')
         logger.info(f"[메인 데이터 수집 성공] 파일 저장 완료: {path_main_csv} (총 {len(df_main_export)}행)")
+        logger.info(f"[여행 코스 데이터 수집 성공] 파일 저장 완료: {path_course_csv} (총 {len(df_courses)}행)")
 
         # 기존 레거시 JSON 파일 제거 (CSV 통합 정책에 따름)
         for file_name in ["관광정보_메인_장소_데이터.json", "관광정보_소개정보.json", "관광정보_세부반복정보.json", "관광정보_추가이미지.json"]:
