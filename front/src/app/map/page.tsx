@@ -3,8 +3,8 @@ import KakaoMapScriptProvider from "@/providers/KakaoMapScriptProvider";
 import { useState } from "react";
 import MapPage from "./_components/Map";
 import MapResult from "./_components/MapResult";
-import { useDebounced } from "../../../hooks/useDebounced";
 import { useSearch } from "@/hooks/queries/featuers/useSearch";
+import { useDebounced } from "@/hooks/useDebounced";
 
 export default function MapSearchPage() {
   const [keyword, setKeyword] = useState("");
