@@ -15,14 +15,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={`h-full antialiased`}>
-      <body className="min-h-full flex flex-col">
-        <QueryProvider>
-          <GoogleAuthProvider>
-            <Header />
-            <main className="max-w-container">{children}</main>
-          </GoogleAuthProvider>
-        </QueryProvider>
+    <html lang="ko" className="h-full antialiased bg-semantic-100">
+      <body className="min-h-full flex flex-col justify-start items-center">
+        <div className="w-full max-w-container min-h-full flex flex-col">
+          <QueryProvider>
+            <GoogleAuthProvider>
+              <Header />
+              <main className="flex-1">{children}</main>
+            </GoogleAuthProvider>
+          </QueryProvider>
+        </div>
       </body>
     </html>
   );
