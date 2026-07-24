@@ -1,13 +1,13 @@
-"use client";
+// "use client";
 
-import GoogleLogin from "./components/features/login/GoogleLogin";
-import NaverLogin from "./components/features/login/NaverLogin";
+// import GoogleLogin from "./components/features/login/GoogleLogin";
+// import NaverLogin from "./components/features/login/NaverLogin";
 
 export default function Home() {
   return (
     <div className="">
       <main className="py-32 px-16">
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
           <GoogleLogin />
           <NaverLogin
             onLoginSuccess={(result) => {
@@ -16,7 +16,7 @@ export default function Home() {
               // 화면도 "로그인됨" 상태로 바뀌게
             }}
           />
-        </div>
+        </div> */}
       </main>
     </div>
   );

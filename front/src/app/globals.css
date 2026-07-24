@@ -1,30 +1,103 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@font-face {
+  font-family: "Pretendard Variable";
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/PretendardVariable.woff2") format("woff2-variations");
+}
+
+@layer base {
+  :root {
+    --color-semantic-100: #ffffff;
+    --color-semantic-300: #f3f4f5;
+    --color-semantic-400: #e6e8ea;
+    --color-semantic-500: #b7bbc0;
+    --color-semantic-600: #6d7278;
+    --color-semantic-700: #33383d;
+    --color-semantic-800: #1a1d20;
+    --color-semantic-900: #000000;
+
+    --color-blue-500: #2087ff;
+    --color-blue-100: #ddeeff;
+    --color-green-500: #35a978;
+    --color-green-100: #d3eee3;
+
+    --background: var(--color-semantic-100);
+    --foreground: var(--color-semantic-800);
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-blue-500: var(--color-blue-500);
+  --color-blue-100: var(--color-blue-100);
+  --color-green-500: var(--color-green-500);
+  --color-green-100: var(--color-green-100);
+
+  --color-semantic-100: var(--color-semantic-100);
+  --color-semantic-300: var(--color-semantic-300);
+  --color-semantic-400: var(--color-semantic-400);
+  --color-semantic-500: var(--color-semantic-500);
+  --color-semantic-600: var(--color-semantic-600);
+  --color-semantic-700: var(--color-semantic-700);
+  --color-semantic-800: var(--color-semantic-800);
+  --color-semantic-900: var(--color-semantic-900);
+
+  /* Fonts */
+  --font-sans:
+    "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, Roboto, sans-serif;
+
+  /* Border Radius */
+  --radius-btn: 8px;
+  --radius-card: 20px;
+
+  /* Box Shadows */
+  --shadow-card: 0 0 20px rgba(0, 0, 0, 0.05);
+
+  /* Layout Spacing */
+  --spacing-container: 480px;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  margin: 0;
 }
 
 button {
   cursor: pointer;
+}
+
+@layer utilities {
+  .text-h1 {
+    font-size: 28px;
+    line-height: 40px;
+    font-weight: 700;
+  }
+
+  .text-h3 {
+    font-size: 20px;
+    line-height: 28px;
+  }
+
+  .text-h3-sm {
+    font-size: 18px;
+    line-height: 26px;
+  }
+
+  .text-b1 {
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  .text-b3 {
+    font-size: 14px;
+    line-height: 20px;
+  }
 }
