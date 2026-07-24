@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import LoginButton from "../../common/LoginButton";
+import LoginButton from "../../common/buttons/LoginButton";
 import { LoginResponse } from "@/api/types/auth";
 
 interface NaverLoginProps {
