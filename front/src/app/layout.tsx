@@ -3,6 +3,7 @@ import "./globals.css";
 import GoogleAuthProvider from "@/providers/GoogleOAuthProvider";
 import QueryProvider from "@/providers/QueryProvider";
 import Header from "./components/layout/Header";
+import MenuTitle from "./components/layout/MenuTitle";
 
 export const metadata: Metadata = {
   title: "Route-check",
@@ -22,6 +23,10 @@ export default function RootLayout({
             <GoogleAuthProvider>
               <Header />
               <main className="flex-1">{children}</main>
+              <MenuTitle iconSrc={"/images/icons/arrow.svg"}>title</MenuTitle>
+              <MenuTitle type="close" iconSrc={"/images/icons/close.svg"}>
+                title
+              </MenuTitle>
             </GoogleAuthProvider>
           </QueryProvider>
         </div>

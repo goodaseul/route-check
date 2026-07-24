@@ -7,7 +7,12 @@ export default function Header() {
     <Inner styles="center h-20">
       <h1>
         <Link href="/">
-          <Image src="/logo.svg" width={84} height={24} alt="루트 체크 로고" />
+          <Image
+            src="/images/logo.svg"
+            width={84}
+            height={24}
+            alt="루트 체크 로고"
+          />
         </Link>
       </h1>
     </Inner>
