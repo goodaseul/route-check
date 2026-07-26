@@ -4,9 +4,9 @@ import { useEffect } from "react";
 import { LoginResponse } from "@/api/types/auth";
 import LoginButton from "@/components/common/buttons/LoginButton";
 
-interface NaverLoginProps {
+type NaverLoginProps = {
   onLoginSuccess: (result: LoginResponse) => void;
-}
+};
 
 export default function NaverLogin({ onLoginSuccess }: NaverLoginProps) {
   useEffect(() => {

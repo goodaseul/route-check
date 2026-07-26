@@ -1,19 +1,19 @@
 import { Map, MapMarker } from "react-kakao-maps-sdk";
-import { PlaceType } from "./Map";
+import type { MapPosition, Place } from "../_types";
 
-interface KakaoMapInputProps {
+type KakaoMapInputProps = {
   mapKeyword: string;
   setMapKeyword: (value: string) => void;
-  center: { lat: number; lng: number };
-  selectedPlace: PlaceType | null;
-  setSelectedPlace: (place: PlaceType | null) => void;
+  center: MapPosition;
+  selectedPlace: Place | null;
+  setSelectedPlace: (place: Place | null) => void;
   handleMapSearch: (e: React.FormEvent) => void;
   handleMapClick: (
     _target: kakao.maps.Map,
     mouseEvent: kakao.maps.event.MouseEvent,
   ) => void;
   handleApplyAddress: () => void;
-}
+};
 
 export default function KakaoMapInput({
   mapKeyword,

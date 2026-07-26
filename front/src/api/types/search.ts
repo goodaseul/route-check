@@ -1,4 +1,4 @@
-export interface SearchResult {
+export type SearchResult = {
   title: string;
   addr1: string;
   addr2: string;
@@ -19,10 +19,10 @@ export interface SearchResult {
   lclsSystm1: string;
   lclsSystm2: string;
   lclsSystm3: string;
-}
+};
 
-export interface SearchResponse {
+export type SearchResponse = {
   keyword: string;
   total_count: number;
   results: SearchResult[];
-}
+};

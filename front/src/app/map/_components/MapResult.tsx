@@ -1,10 +1,10 @@
 import { SearchResponse } from "@/api/types/search";
 import Image from "next/image";
 
-interface MapResultProps {
+type MapResultProps = {
   loading: boolean;
   data: SearchResponse | null;
-}
+};
 
 export default function MapResult({ loading, data }: MapResultProps) {
   return (

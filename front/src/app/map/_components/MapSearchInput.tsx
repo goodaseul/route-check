@@ -1,7 +1,7 @@
-interface MapSearchInputProps {
+type MapSearchInputProps = {
   keyword: string;
   setKeyword: (keyword: string) => void;
-}
+};
 
 export default function MapSearchInput({
   keyword,

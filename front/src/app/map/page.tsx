@@ -3,7 +3,7 @@ import KakaoMapScriptProvider from "@/providers/KakaoMapScriptProvider";
 import { useState } from "react";
 import MapPage from "./_components/Map";
 import MapResult from "./_components/MapResult";
-import { useSearch } from "@/hooks/queries/featuers/useSearch";
+import { useSearch } from "@/hooks/queries/features/useSearch";
 import { useDebounced } from "@/hooks/useDebounced";
 
 export default function MapSearchPage() {

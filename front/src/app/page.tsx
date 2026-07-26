@@ -1,10 +1,14 @@
+"use client";
+
 // import GoogleLogin from "./components/features/login/GoogleLogin";
 // import NaverLogin from "./components/features/login/NaverLogin";
 
 import SelectionCard from "@/components/common/selection-card/SelectionCard";
-import SelectionCardDesc from "@/components/common/selection-card/SelectoinCardDesc";
+import SelectionCardDesc from "@/components/common/selection-card/SelectionCardDesc";
+import { useState } from "react";
 
 export default function Home() {
+  //   const [selectedDay, setSelectedDay] = useState("1");
   return (
     <div className="">
       <div className="flex flex-col gap-4 p-6">
