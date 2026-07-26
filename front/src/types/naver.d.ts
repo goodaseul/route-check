@@ -1,31 +1,31 @@
-interface NaverLoginUser {
+type NaverLoginUser = {
   getId: () => string;
   getEmail: () => string;
   getName: () => string;
   getNickName: () => string;
   getProfileImage: () => string;
-}
+};
 
-interface NaverLoginOptions {
+type NaverLoginOptions = {
   clientId: string;
   callbackUrl: string;
   isPopup: boolean;
   callbackHandle?: boolean;
-}
+};
 
-interface NaverLoginInstance {
+type NaverLoginInstance = {
   init: () => void;
   getLoginStatus: (callback: (status: boolean) => void) => void;
   user: NaverLoginUser;
-}
+};
 
-interface NaverIdLoginStatic {
+type NaverIdLoginStatic = {
   LoginWithNaverId: new (options: NaverLoginOptions) => NaverLoginInstance;
-}
+};
 
 declare global {
   interface Window {
-    naver: NaverIdLoginStatic;
+    naver?: NaverIdLoginStatic;
   }
 }
 

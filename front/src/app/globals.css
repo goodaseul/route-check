@@ -28,6 +28,13 @@
     --background: var(--color-semantic-100);
     --foreground: var(--color-semantic-800);
   }
+
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
 }
 
 @theme inline {
@@ -67,10 +74,6 @@ body {
   margin: 0;
 }
 
-button {
-  cursor: pointer;
-}
-
 @layer utilities {
   .text-h1 {
     font-size: 28px;
@@ -92,10 +95,18 @@ button {
     font-size: 16px;
     line-height: 24px;
   }
-
+  .text-b2 {
+    font-size: 15px;
+    line-height: 22px;
+  }
   .text-b3 {
     font-size: 14px;
     line-height: 20px;
+  }
+
+  .text-d1 {
+    font-size: 12px;
+    line-height: 16px;
   }
 
   .center {

@@ -1,13 +1,13 @@
-import { Suspense, ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
 import ErrorFallback from "./ErrorFallback";
 
-interface AsyncBoundaryProps {
+type AsyncBoundaryProps = {
   children: ReactNode;
   pendingFallback?: ReactNode;
   rejectedFallback?: ReactNode;
-}
+};
 
 export default function AsyncBoundary({
   children,

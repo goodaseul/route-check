@@ -3,25 +3,18 @@
 import React, { useState } from "react";
 import MapSearchInput from "./MapSearchInput";
 import KakaoMapInput from "./KakaoMapInput";
+import type { Place } from "../_types";
 
-export interface PlaceType {
-  place_name: string;
-  address_name: string;
-  road_address_name: string;
-  lat: number;
-  lng: number;
-}
-
-interface MapPageProps {
+type MapPageProps = {
   keyword: string;
   setKeyword: (value: string) => void;
-}
+};
 
 export default function MapPage({ keyword, setKeyword }: MapPageProps) {
   const [showMap, setShowMap] = useState<boolean>(false);
   const [mapKeyword, setMapKeyword] = useState<string>("");
   const [center, setCenter] = useState({ lat: 37.566826, lng: 126.9786567 });
-  const [selectedPlace, setSelectedPlace] = useState<PlaceType | null>(null);
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
 
   const handleMapSearch = (e: React.FormEvent) => {
     e.preventDefault();

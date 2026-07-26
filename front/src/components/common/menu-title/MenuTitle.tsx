@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Inner from "../layout/Inner";
-import ArrowIcon from "../icons/ArrowIcon";
-import CloseIcon from "../icons/CloseIcon";
+import ArrowIcon from "@/components/icons/ArrowIcon";
+import CloseIcon from "@/components/icons/CloseIcon";
+import Inner from "@/components/layout/Inner";
 
 type MenuTitleState = "back" | "close";
 

@@ -1,18 +1,18 @@
 import { useGoogleLogin } from "@react-oauth/google";
-import LoginButton from "../../common/buttons/LoginButton";
 import fetchLoginGoogle from "@/api/loginGoogle";
-interface GoogleUserInfo {
+import LoginButton from "@/components/common/buttons/LoginButton";
+type GoogleUserInfo = {
   sub: string;
   email: string;
   name: string;
   picture: string;
-}
+};
 
 export default function GoogleLogin() {
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       try {
-        // 1. access_token으로 구글에 유저 정q보 요청
+        // 1. access_token으로 구글에 유저 정보 요청
         const res = await fetch(
           "https://www.googleapis.com/oauth2/v3/userinfo",
           {

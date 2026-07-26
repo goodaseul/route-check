@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import LoginButton from "../../common/buttons/LoginButton";
 import { LoginResponse } from "@/api/types/auth";
+import LoginButton from "@/components/common/buttons/LoginButton";
+import { loadNaverSdk } from "@/lib/naver/loadNaverSdk";
 
-interface NaverLoginProps {
+type NaverLoginProps = {
   onLoginSuccess: (result: LoginResponse) => void;
-}
+};
 
 export default function NaverLogin({ onLoginSuccess }: NaverLoginProps) {
   useEffect(() => {
@@ -21,27 +22,19 @@ export default function NaverLogin({ onLoginSuccess }: NaverLoginProps) {
   }, [onLoginSuccess]);
 
   useEffect(() => {
-    if (document.getElementById("naver-login-sdk")) {
-      initNaverLogin();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = "naver-login-sdk";
-    script.src = "https://static.nid.naver.com/js/naveridlogin_js_sdk_2.0.2.js";
-    script.async = true;
-    script.onload = initNaverLogin;
-    document.head.appendChild(script);
-
-    function initNaverLogin() {
-      const naverLogin = new window.naver.LoginWithNaverId({
-        clientId: process.env.NEXT_PUBLIC_NAVER_CLIENT_ID!,
-        callbackUrl: `${window.location.origin}/auth/naver/callback`,
-        isPopup: true,
-        callbackHandle: true,
+    loadNaverSdk()
+      .then(() => {
+        const naverLogin = new window.naver!.LoginWithNaverId({
+          clientId: process.env.NEXT_PUBLIC_NAVER_CLIENT_ID!,
+          callbackUrl: `${window.location.origin}/auth/naver/callback`,
+          isPopup: true,
+          callbackHandle: true,
+        });
+        naverLogin.init();
+      })
+      .catch((error: unknown) => {
+        console.error("네이버 로그인 초기화 실패:", error);
       });
-      naverLogin.init();
-    }
   }, []);
 
   const handleNaverLogin = () => {
