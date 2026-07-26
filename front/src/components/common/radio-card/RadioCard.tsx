@@ -39,7 +39,7 @@ export default function RadioCard({
       <div
         className="
           flex items-center justify-center h-14 px-4 rounded-[8px] border border-semantic-400 bg-semantic-100
-          text-b-1 font-medium text-semantic-600 transition-all
+          text-b1 font-medium text-semantic-600 transition-all
           hover:bg-blue-100 hover:text-blue-500 hover:border-transparent
           peer-checked:border-transparent peer-checked:bg-blue-500 peer-checked:text-sb peer-checked:text-semantic-100
           peer-checked:hover:bg-blue-500 

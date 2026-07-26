@@ -21,7 +21,7 @@ export default function Tab({ items, value, onChange }: TabProps) {
               type="button"
               onClick={() => onChange(item.value)}
               className={`
-                px-4 py-2 text-b-1 rounded-full transition-colors whitespace-nowrap
+                px-4 py-2 text-b1 rounded-full transition-colors whitespace-nowrap
                 ${
                   isActive
                     ? "bg-semantic-900 text-semantic-100 font-semibold"

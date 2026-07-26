@@ -59,7 +59,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="text-b-2 font-semibold text-semantic-800 
+            className="text-b2 font-semibold text-semantic-800 
             flex items-center gap-0.5"
           >
             {label}
@@ -133,7 +133,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
         {(errorMessage || helperMessage) && (
           <p
-            className={`text-b-3 ${
+            className={`text-b3 ${
               isError ? "text-red-400" : "text-semantic-600"
             }`}
           >
