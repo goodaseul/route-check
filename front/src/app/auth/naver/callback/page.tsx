@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import fetchLoginNaver from "@/api/loginNaver";
 import { NaverLoginInstance } from "@/types/naver";
 import { LoginResponse } from "@/api/types/auth";
+import { loadNaverSdk } from "@/lib/naver/loadNaverSdk";
 
 export default function NaverCallback() {
   useEffect(() => {
@@ -36,7 +37,7 @@ export default function NaverCallback() {
     }
 
     function initNaverLogin() {
-      const naverLogin = new window.naver.LoginWithNaverId({
+      const naverLogin = new window.naver!.LoginWithNaverId({
         clientId: process.env.NEXT_PUBLIC_NAVER_CLIENT_ID!,
         callbackUrl: `${window.location.origin}/auth/naver/callback`,
         isPopup: true,
@@ -46,17 +47,9 @@ export default function NaverCallback() {
       handleLoginStatus(naverLogin);
     }
 
-    if (document.getElementById("naver-login-sdk")) {
-      initNaverLogin();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = "naver-login-sdk";
-    script.src = "https://static.nid.naver.com/js/naveridlogin_js_sdk_2.0.2.js";
-    script.async = true;
-    script.onload = initNaverLogin;
-    document.head.appendChild(script);
+    loadNaverSdk().then(initNaverLogin).catch((error: unknown) => {
+      console.error("네이버 로그인 콜백 초기화 실패:", error);
+    });
   }, []);
 
   return null;

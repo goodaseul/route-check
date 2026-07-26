@@ -12,7 +12,7 @@ export default function GoogleLogin() {
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       try {
-        // 1. access_token으로 구글에 유저 정q보 요청
+        // 1. access_token으로 구글에 유저 정보 요청
         const res = await fetch(
           "https://www.googleapis.com/oauth2/v3/userinfo",
           {

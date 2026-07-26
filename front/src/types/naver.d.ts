@@ -25,7 +25,7 @@ type NaverIdLoginStatic = {
 
 declare global {
   interface Window {
-    naver: NaverIdLoginStatic;
+    naver?: NaverIdLoginStatic;
   }
 }
 
