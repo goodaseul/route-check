@@ -1,6 +1,7 @@
 "use client";
 
 import Button from "@/components/common/buttons/Button";
+import Checkbox from "@/components/common/checkbox/Checkbox";
 import RadioCard from "@/components/common/radio-card/RadioCard";
 import SelectionCard from "@/components/common/selection-card/SelectionCard";
 import SelectionCardDesc from "@/components/common/selection-card/SelectionCardDesc";
@@ -10,6 +11,10 @@ import NaverLogin from "@/components/features/login/NaverLogin";
 import { useState } from "react";
 
 export default function Common() {
+  // checkbox start
+  const [checked, setChecked] = useState(false);
+  // checkbox end
+
   // Button start
   const [clicked, setClicked] = useState(false);
 
@@ -38,6 +43,13 @@ export default function Common() {
   return (
     <div className="">
       <div className="flex flex-col gap-4 p-6">
+        {/* Checkbox start */}
+        <Checkbox
+          checked={checked}
+          onChange={(e) => setChecked(e.target.checked)}
+        />
+        {/* Checkbox end */}
+
         {/* Button start */}
         <Button onClick={handleClick}>버튼 텍스트</Button>
         <Button buttonBg="blue" onClick={handleClick}>

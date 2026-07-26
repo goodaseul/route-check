@@ -1,32 +1,40 @@
-type RadioCardProps = {
-  name: string;
-  value: string;
+import { useId } from "react";
+
+type RadioCardProps = Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "type" | "onChange"
+> & {
   children: React.ReactNode;
-  disabled?: boolean;
-  checked?: boolean;
   onChange?: (value: string) => void;
 };
-
 export default function RadioCard({
+  id,
   name,
   value,
   children,
   checked,
   disabled,
   onChange,
+  ...props
 }: RadioCardProps) {
+  const generatedId = useId();
+  const radioId = id || generatedId;
+
   return (
     <label
+      htmlFor={radioId}
       className={`relative  select-none block ${disabled ? "pointer-events-none" : "cursor-pointer"}`}
     >
       <input
+        id={radioId}
         type="radio"
         name={name}
         value={value}
         className="peer sr-only"
         disabled={disabled}
         checked={checked}
-        onChange={() => onChange?.(value)}
+        onChange={() => onChange?.(value as string)}
+        {...props}
       />
       <div
         className="
