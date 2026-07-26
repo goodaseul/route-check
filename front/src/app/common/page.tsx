@@ -2,7 +2,10 @@
 
 import Button from "@/components/common/buttons/Button";
 import Checkbox from "@/components/common/checkbox/Checkbox";
+import DateInput from "@/components/common/date-input/DateInput";
+import Input from "@/components/common/input/Input";
 import RadioCard from "@/components/common/radio-card/RadioCard";
+import SearchBox from "@/components/common/search-box/SearchBox";
 import SelectionCard from "@/components/common/selection-card/SelectionCard";
 import SelectionCardDesc from "@/components/common/selection-card/SelectionCardDesc";
 import Tab from "@/components/common/tab/Tab";
@@ -11,9 +14,15 @@ import NaverLogin from "@/components/features/login/NaverLogin";
 import { useState } from "react";
 
 export default function Common() {
-  // checkbox start
+  // Input start
+  const [value, setValue] = useState<string>("");
+  const [date, setDate] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
+  // Input end
+
+  // Checkbox start
   const [checked, setChecked] = useState(false);
-  // checkbox end
+  // Checkbox end
 
   // Button start
   const [clicked, setClicked] = useState(false);
@@ -43,13 +52,41 @@ export default function Common() {
   return (
     <div className="">
       <div className="flex flex-col gap-4 p-6">
+        {/* Input start */}
+        <Input label="내용" required placeholder="내용을 입력해 주세요" />
+
+        <Input
+          label="내용"
+          required
+          value={value}
+          helperMessage="메세지를 입력해주세요."
+          onChange={(e) => setValue(e.target.value)}
+          onClear={() => setValue("")}
+        />
+        <Input
+          label="내용"
+          required
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          errorMessage="메시지를 입력해 주세요"
+        />
+        <Input label="내용" required disabled placeholder="내용" />
+        {/* Date */}
+        <DateInput label="기간" required value={date} onChange={setDate} />
+        {/* Input end */}
+        {/* SearchBox start */}
+        <SearchBox
+          value={searchKeyword}
+          onChange={setSearchKeyword}
+          onSearch={(keyword) => console.log("검색:", keyword)}
+        />
+        {/* SearchBox end */}
         {/* Checkbox start */}
         <Checkbox
           checked={checked}
           onChange={(e) => setChecked(e.target.checked)}
         />
         {/* Checkbox end */}
-
         {/* Button start */}
         <Button onClick={handleClick}>버튼 텍스트</Button>
         <Button buttonBg="blue" onClick={handleClick}>
@@ -58,9 +95,7 @@ export default function Common() {
         <Button buttonBg="blue" onClick={handleClick} disabled>
           버튼 텍스트
         </Button>
-
         {/* Button end */}
-
         {/* RadioCard start */}
         <RadioCard
           name="transport"
@@ -79,16 +114,13 @@ export default function Common() {
           자차
         </RadioCard>
         {/* RadioCard end */}
-
         {/* Tab start */}
-
         <Tab
           items={dayTabItmes}
           value={selectedDay}
           onChange={setSelectedDay}
         />
         {/* Tab end */}
-
         {/* SelectionCard start */}
         <SelectionCard type="plan">
           <SelectionCardDesc
@@ -96,14 +128,12 @@ export default function Common() {
             desc="계획한 일정을 분석해드릴게요"
           />
         </SelectionCard>
-
         <SelectionCard type="date">
           <SelectionCardDesc
             title="여행 날짜만 정했어요"
             desc="날짜를 기준으로 일정을 구성할게요"
           />
         </SelectionCard>
-
         {/* SelectionCard end */}
       </div>
 
