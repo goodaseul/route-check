@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import GoogleAuthProvider from "@/providers/GoogleOAuthProvider";
 import QueryProvider from "@/providers/QueryProvider";
-import Header from "./components/layout/Header";
+import Header from "@/components/layout/Header";
 
 export const metadata: Metadata = {
   //  metadataBase: new URL("https://route-check.com"), // 실제 도메인

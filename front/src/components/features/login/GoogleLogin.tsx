@@ -1,6 +1,6 @@
 import { useGoogleLogin } from "@react-oauth/google";
-import LoginButton from "../../common/buttons/LoginButton";
 import fetchLoginGoogle from "@/api/loginGoogle";
+import LoginButton from "@/components/common/buttons/LoginButton";
 interface GoogleUserInfo {
   sub: string;
   email: string;

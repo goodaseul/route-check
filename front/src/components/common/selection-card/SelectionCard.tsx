@@ -2,8 +2,8 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import CalendarIcon from "../../icons/CalendarIcon";
-import SpotIcon from "../../icons/SpotIcon";
+import CalendarIcon from "@/components/icons/CalendarIcon";
+import SpotIcon from "@/components/icons/SpotIcon";
 
 type CardState = "plan" | "date";
 

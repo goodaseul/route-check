@@ -1,4 +1,4 @@
-import ArrowIcon from "../../icons/ArrowIcon";
+import ArrowIcon from "@/components/icons/ArrowIcon";
 
 type SelectionCardDescProps = {
   title: string;

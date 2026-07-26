@@ -1,16 +1,13 @@
-// "use client";
-
-import SelectionCard from "./components/common/selection-card/SelectionCard";
-import SelectionCardDesc from "./components/common/selection-card/SelectoinCardDesc";
-
 // import GoogleLogin from "./components/features/login/GoogleLogin";
 // import NaverLogin from "./components/features/login/NaverLogin";
+
+import SelectionCard from "@/components/common/selection-card/SelectionCard";
+import SelectionCardDesc from "@/components/common/selection-card/SelectoinCardDesc";
 
 export default function Home() {
   return (
     <div className="">
       <div className="flex flex-col gap-4 p-6">
-        {/* 1번 카드: Plan (기본 -> Hover시 Blue) */}
         <SelectionCard type="plan">
           <SelectionCardDesc
             title="여행 계획이 있어요"
@@ -18,7 +15,6 @@ export default function Home() {
           />
         </SelectionCard>
 
-        {/* 2번 카드: Date (기본 -> Hover시 Green) */}
         <SelectionCard type="date">
           <SelectionCardDesc
             title="여행 날짜만 정했어요"
