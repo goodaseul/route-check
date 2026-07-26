@@ -1,5 +1,6 @@
 "use client";
 
+import Button from "@/components/common/buttons/Button";
 import RadioCard from "@/components/common/radio-card/RadioCard";
 import SelectionCard from "@/components/common/selection-card/SelectionCard";
 import SelectionCardDesc from "@/components/common/selection-card/SelectionCardDesc";
@@ -9,6 +10,15 @@ import NaverLogin from "@/components/features/login/NaverLogin";
 import { useState } from "react";
 
 export default function Common() {
+  // Button start
+  const [clicked, setClicked] = useState(false);
+
+  const handleClick = () => {
+    setClicked((prev) => !prev);
+  };
+
+  // Button end
+
   // RadioCard start
   const [selectedTransport, setSelectedTransport] = useState("car");
   // RadioCard end
@@ -28,6 +38,17 @@ export default function Common() {
   return (
     <div className="">
       <div className="flex flex-col gap-4 p-6">
+        {/* Button start */}
+        <Button onClick={handleClick}>버튼 텍스트</Button>
+        <Button buttonBg="blue" onClick={handleClick}>
+          버튼 텍스트
+        </Button>
+        <Button buttonBg="blue" onClick={handleClick} disabled>
+          버튼 텍스트
+        </Button>
+
+        {/* Button end */}
+
         {/* RadioCard start */}
         <RadioCard
           name="transport"

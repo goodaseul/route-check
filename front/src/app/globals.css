@@ -28,6 +28,13 @@
     --background: var(--color-semantic-100);
     --foreground: var(--color-semantic-800);
   }
+
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
 }
 
 @theme inline {
@@ -65,10 +72,6 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   margin: 0;
-}
-
-button {
-  cursor: pointer;
 }
 
 @layer utilities {

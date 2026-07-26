@@ -17,7 +17,7 @@ export default function RadioCard({
 }: RadioCardProps) {
   return (
     <label
-      className={`relative  select-none block ${disabled ? "cursor-not-allwed" : "cursor-pointer"}`}
+      className={`relative  select-none block ${disabled ? "pointer-events-none" : "cursor-pointer"}`}
     >
       <input
         type="radio"
