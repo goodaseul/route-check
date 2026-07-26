@@ -10,7 +10,7 @@ export default function MapSearchPage() {
   const [keyword, setKeyword] = useState("");
   const debouncedKeyword = useDebounced(keyword, 300);
 
-  const { data, isLoading, isError } = useSearch({ keyword: debouncedKeyword });
+  const { data, isLoading } = useSearch({ keyword: debouncedKeyword });
 
   return (
     <div className="w-full max-w-md mx-auto mt-10 space-y-4">

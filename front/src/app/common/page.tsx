@@ -6,6 +6,7 @@ import DateInput from "@/components/common/date-input/DateInput";
 import Input from "@/components/common/input/Input";
 import PlaceCard from "@/components/common/place-card/PlaceCard";
 import RadioCard from "@/components/common/radio-card/RadioCard";
+import ScoreCard from "@/components/common/score-card/ScoreCard";
 import SearchBox from "@/components/common/search-box/SearchBox";
 import SelectionCard from "@/components/common/selection-card/SelectionCard";
 import SelectionCardDesc from "@/components/common/selection-card/SelectionCardDesc";
@@ -14,16 +15,44 @@ import GoogleLogin from "@/components/features/login/GoogleLogin";
 import NaverLogin from "@/components/features/login/NaverLogin";
 import { useState } from "react";
 
+// ScoreCard start
+const scores = [
+  {
+    id: 1,
+    score: 100,
+    deduction: 0,
+    description: "이동 동선이 알차게 짜여 있어요",
+  },
+  {
+    id: 2,
+    score: 80,
+    deduction: 0,
+    description: "무리 없이 편안하게 다닐 수 있어요",
+  },
+  {
+    id: 3,
+    score: 60,
+    deduction: 0,
+    description: "전반적으로 괜찮지만 이동이 많은 구간이 있어요",
+  },
+  {
+    id: 4,
+    score: 40,
+    deduction: 0,
+    description: "이동 부담이 커요, 일정을 조정해보세요",
+  },
+];
+// ScoreCard end
 // Placehoder start
 const places = [
   {
-    id: "1",
+    id: 1,
     title: "여행지명",
     desc: "여행지위치",
     imageSrc: null,
   },
   {
-    id: "2",
+    id: 2,
     title: "여행지명여행지명여행지명",
     desc: "여행지위치여행지위치여행지위치",
     imageSrc: null,
@@ -32,7 +61,7 @@ const places = [
 export default function Common() {
   // Placehoder start
 
-  const [selectedId, setSeletedId] = useState<string | null>(null);
+  const [selectedId, setSeletedId] = useState<number | null>(null);
   // Placehoder end
 
   // Input start
@@ -73,6 +102,13 @@ export default function Common() {
   return (
     <div className="">
       <div className="flex flex-col gap-4 p-6">
+        {/* ScoreCard start */}
+        <div className="flex flex-col gap-4">
+          {scores.map((item) => (
+            <ScoreCard key={item.id} {...item} />
+          ))}
+        </div>
+        {/* ScoreCard end */}
         {/* PlaceCard start */}
         <div className="flex justify-between">
           {places.map((place) => (
