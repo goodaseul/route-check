@@ -46,7 +46,7 @@ export default function MenuTitle({
 
   return (
     <Inner styles={`h-20 center relative ${className}`}>
-      <h2 className="text-h3-sm text-semantic-800">{children}</h2>
+      <h2 className="text-h3 font-semibold text-semantic-800">{children}</h2>
 
       <button
         type="button"

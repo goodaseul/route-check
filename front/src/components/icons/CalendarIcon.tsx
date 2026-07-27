@@ -13,16 +13,23 @@ export default function CalendarIcon({ className = "" }: IconProps) {
       className={className}
     >
       <path
-        d="M19 4H5C3.89543 4 3 4.89543 3 6V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V6C21 4.89543 20.1046 4 19 4Z"
+        d="M8 6V3.5M16 6V3.5"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="2.25"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M16 2V6M8 2V6M3 10H21"
+        d="M5.5 5H18.5C19.8807 5 21 6.11929 21 7.5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V7.5C3 6.11929 4.11929 5 5.5 5Z"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="2.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M3 9.5H21"
+        stroke="currentColor"
+        strokeWidth="2.25"
         strokeLinecap="round"
         strokeLinejoin="round"
       />

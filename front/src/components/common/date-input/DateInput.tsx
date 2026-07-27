@@ -1,62 +1,103 @@
 "use client";
 
-import { useRef, type ChangeEvent } from "react";
-import { Calendar } from "lucide-react";
-import Input, { type InputProps } from "@/components/common/input/Input";
+import { useCallback, useId, useState } from "react";
+import type { DateRange } from "@daypicker/react";
+import CalendarIcon from "@/components/icons/CalendarIcon";
+import DatePickerSheet from "./DatePickerSheet";
+import { formatDateRange } from "./date-format";
 
-type DateInputProps = Omit<
-  InputProps,
-  "type" | "value" | "onChange" | "rightIcon" | "rightAction"
-> & {
-  value: string;
-  onChange: (value: string) => void;
+export type DateInputProps = {
+  id?: string;
+  label?: string;
+  value?: DateRange;
+  onChange: (value: DateRange) => void;
+  placeholder?: string;
+  helperMessage?: string;
+  disabled?: boolean;
+  required?: boolean;
+  className?: string;
 };
 
 export default function DateInput({
+  id,
+  label,
   value,
   onChange,
-  disabled,
+  placeholder = "YYYY.MM.DD ~ YYYY.MM.DD",
+  helperMessage = "여행은 최대 5일까지 선택할 수 있어요",
+  disabled = false,
+  required = false,
   className = "",
-  ...props
 }: DateInputProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const generatedId = useId();
+  const inputId = id || generatedId;
+  const [isOpen, setIsOpen] = useState(false);
+  const [draftRange, setDraftRange] = useState<DateRange | undefined>(value);
+  const displayValue = value?.from ? formatDateRange(value) : "";
+  const closeCalendar = useCallback(() => setIsOpen(false), []);
 
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    onChange(event.target.value);
-  };
-
-  const handleOpenCalendar = () => {
+  const openCalendar = () => {
     if (disabled) return;
 
-    const input = inputRef.current;
-    if (!input) return;
+    setDraftRange(value);
+    setIsOpen(true);
+  };
 
-    const showPicker = (
-      input as HTMLInputElement & { showPicker?: () => void }
-    ).showPicker;
+  const confirmRange = () => {
+    if (!draftRange?.from) return;
 
-    if (showPicker) {
-      showPicker.call(input);
-      return;
-    }
-
-    input.focus();
+    onChange({
+      from: draftRange.from,
+      to: draftRange.to || draftRange.from,
+    });
+    closeCalendar();
   };
 
   return (
-    <Input
-      {...props}
-      ref={inputRef}
-      type="date"
-      value={value}
-      disabled={disabled}
-      onChange={handleChange}
-      rightAction={{
-        icon: <Calendar size={20} aria-hidden="true" />,
-        label: "달력 열기",
-        onClick: handleOpenCalendar,
-      }}
-      className={`[&::-webkit-calendar-picker-indicator]:opacity-0 ${className}`}
-    />
+    <>
+      <div className={`flex w-full flex-col gap-2.5 ${className}`}>
+        {label && (
+          <label
+            htmlFor={inputId}
+            className="flex items-center gap-0.5 text-b2 font-semibold text-semantic-800"
+          >
+            {label}
+            {required && <span className="text-red-400">*</span>}
+          </label>
+        )}
+
+        <button
+          id={inputId}
+          type="button"
+          disabled={disabled}
+          aria-haspopup="dialog"
+          aria-expanded={isOpen}
+          onClick={openCalendar}
+          className="flex h-14 w-full items-center justify-between rounded-btn border border-semantic-300 bg-semantic-100 px-5 text-left transition-colors hover:border-semantic-400 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-semantic-300"
+        >
+          <span
+            className={`text-b1 ${
+              displayValue ? "text-semantic-800" : "text-semantic-500"
+            }`}
+          >
+            {displayValue || placeholder}
+          </span>
+          <CalendarIcon className="size-7 shrink-0 text-semantic-700" />
+        </button>
+
+        {helperMessage && (
+          <p className="text-b3 text-semantic-600">{helperMessage}</p>
+        )}
+      </div>
+
+      {isOpen && (
+        <DatePickerSheet
+          value={draftRange}
+          onChange={setDraftRange}
+          onCancel={closeCalendar}
+          onConfirm={confirmRange}
+        />
+      )}
+    </>
   );
 }

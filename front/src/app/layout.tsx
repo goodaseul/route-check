@@ -39,8 +39,7 @@ export default function RootLayout({
         <div className="w-full max-w-container min-h-full flex flex-col">
           <QueryProvider>
             <GoogleAuthProvider>
-              <Header />
-              <main className="flex-1">{children}</main>
+              {children}
               <Toaster position="bottom-center" />
             </GoogleAuthProvider>
           </QueryProvider>
