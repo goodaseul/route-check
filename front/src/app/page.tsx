@@ -86,7 +86,7 @@ export default function page() {
             desc="계획한 일정을 분석해드릴게요"
           />
         </SelectionCard>
-        <SelectionCard type="date">
+        <SelectionCard toastMessage="준비 중이에요" type="date">
           <SelectionCardDesc
             title="여행 날짜만 정했어요"
             desc="날짜를 기준으로 일정을 구성할게요"

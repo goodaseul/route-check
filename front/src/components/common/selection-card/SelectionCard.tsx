@@ -4,6 +4,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import CalendarIcon from "@/components/icons/CalendarIcon";
 import SpotIcon from "@/components/icons/SpotIcon";
+import { showToast } from "@/lib/utils/toast";
 
 type CardState = "plan" | "date";
 
@@ -12,6 +13,7 @@ type SelectionCardProps = {
   type?: CardState;
   customIcon?: React.ReactNode;
   onAction?: () => void;
+  toastMessage?: string;
 };
 
 export default function SelectionCard({
@@ -19,6 +21,7 @@ export default function SelectionCard({
   type = "plan",
   customIcon,
   onAction,
+  toastMessage,
 }: SelectionCardProps) {
   const router = useRouter();
   const isPlan = type === "plan";
@@ -28,6 +31,12 @@ export default function SelectionCard({
       onAction();
       return;
     }
+
+    if (toastMessage) {
+      showToast(toastMessage);
+      return;
+    }
+
     router.push(isPlan ? "/plan" : "/date");
   };
 
