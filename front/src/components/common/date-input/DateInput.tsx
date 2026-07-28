@@ -69,7 +69,10 @@ export default function DateInput({
         )}
 
         <button
+          id={inputId}
+          type="button"
           disabled={disabled}
+          onClick={openCalendar}
           className="
             flex h-14 w-full items-center justify-between rounded-btn
             border border-semantic-300 bg-semantic-100 px-5
