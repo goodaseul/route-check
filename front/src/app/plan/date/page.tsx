@@ -14,7 +14,7 @@ import { formatDateRange } from "@/components/common/date-input/date-format";
 
 type Transport = "car" | "public";
 
-export default function PlanPage() {
+export default function DatePage() {
   const router = useRouter();
 
   const [selectedTransport, setSelectedTransport] = useState<Transport | null>(
@@ -30,7 +30,7 @@ export default function PlanPage() {
       transport: selectedTransport,
       date: formatDateRange(dateRange),
     });
-    router.push(`/map?${searchParams.toString()}`);
+    router.push(`/plan/schedule?${searchParams.toString()}`);
   };
 
   return (
@@ -46,49 +46,48 @@ export default function PlanPage() {
               최적의 동선을 계산해드릴게요
             </Desc>
           </section>
-          <form
-            className="flex flex-col gap-8"
-            onSubmit={(event) => {
-              event.preventDefault();
-              handleNext();
-            }}
-          >
-            <fieldset>
-              <legend className="text-b2 font-semibold text-semantic-800">
-                이동수단
-              </legend>
-              <div className="grid grid-cols-2 gap-3 w-full mt-2.5">
-                <RadioCard
-                  name="transport"
-                  value="car"
-                  checked={selectedTransport === "car"}
-                  onChange={setSelectedTransport}
-                >
-                  자차
-                </RadioCard>
-                <RadioCard
-                  name="transport"
-                  value="public"
-                  checked={selectedTransport === "public"}
-                  onChange={setSelectedTransport}
-                >
-                  대중교통
-                </RadioCard>
-              </div>
-            </fieldset>
-            <DateInput
-              label="여행 일자"
-              value={dateRange}
-              onChange={setDateRange}
-            />
-            <Button
-              type="submit"
-              buttonBg="blue"
-              disabled={!canContinue}
+          <section>
+            <form
+              className="flex flex-col gap-8"
+              onSubmit={(event) => {
+                event.preventDefault();
+                handleNext();
+              }}
             >
-              다음
-            </Button>
-          </form>
+              <fieldset>
+                <legend className="text-b2 font-semibold text-semantic-800">
+                  이동수단
+                </legend>
+                <div className="grid grid-cols-2 gap-3 w-full mt-2.5">
+                  <RadioCard
+                    name="transport"
+                    value="car"
+                    checked={selectedTransport === "car"}
+                    onChange={setSelectedTransport}
+                  >
+                    자차
+                  </RadioCard>
+                  <RadioCard
+                    name="transport"
+                    value="public"
+                    checked={selectedTransport === "public"}
+                    onChange={setSelectedTransport}
+                  >
+                    대중교통
+                  </RadioCard>
+                </div>
+              </fieldset>
+              <DateInput
+                label="여행 일자"
+                value={dateRange}
+                onChange={setDateRange}
+                helperMessage="여행은 최대 5일까지 선택할 수 있어요"
+              />
+              <Button type="submit" buttonBg="blue" disabled={!canContinue}>
+                다음
+              </Button>
+            </form>
+          </section>
         </main>
       </Inner>
     </>

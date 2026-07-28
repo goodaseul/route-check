@@ -37,7 +37,7 @@ export default function SelectionCard({
       return;
     }
 
-    router.push(isPlan ? "/plan" : "/date");
+    router.push(isPlan ? "/plan/date/" : "/date");
   };
 
   const cardHoverStyle = isPlan

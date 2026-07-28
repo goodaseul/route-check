@@ -10,7 +10,7 @@ export type DateInputProps = {
   id?: string;
   label?: string;
   value?: DateRange;
-  onChange: (value: DateRange) => void;
+  onChange?: (value: DateRange) => void;
   placeholder?: string;
   helperMessage?: string;
   disabled?: boolean;
@@ -24,7 +24,7 @@ export default function DateInput({
   value,
   onChange,
   placeholder = "YYYY.MM.DD ~ YYYY.MM.DD",
-  helperMessage = "여행은 최대 5일까지 선택할 수 있어요",
+  helperMessage = "",
   disabled = false,
   required = false,
   className = "",
@@ -46,10 +46,12 @@ export default function DateInput({
   const confirmRange = () => {
     if (!draftRange?.from) return;
 
-    onChange({
-      from: draftRange.from,
-      to: draftRange.to || draftRange.from,
-    });
+    if (onChange) {
+      onChange({
+        from: draftRange.from,
+        to: draftRange.to || draftRange.from,
+      });
+    }
     closeCalendar();
   };
 
@@ -67,22 +69,29 @@ export default function DateInput({
         )}
 
         <button
-          id={inputId}
-          type="button"
           disabled={disabled}
-          aria-haspopup="dialog"
-          aria-expanded={isOpen}
-          onClick={openCalendar}
-          className="flex h-14 w-full items-center justify-between rounded-btn border border-semantic-300 bg-semantic-100 px-5 text-left transition-colors hover:border-semantic-400 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-semantic-300"
+          className="
+            flex h-14 w-full items-center justify-between rounded-btn
+            border border-semantic-300 bg-semantic-100 px-5
+            disabled:cursor-not-allowed
+            disabled:border-semantic-400
+            disabled:bg-semantic-300
+        "
         >
           <span
             className={`text-b1 ${
-              displayValue ? "text-semantic-800" : "text-semantic-500"
+              disabled
+                ? "text-semantic-500"
+                : displayValue
+                  ? "text-semantic-800"
+                  : "text-semantic-500"
             }`}
           >
             {displayValue || placeholder}
           </span>
-          <CalendarIcon className="size-7 shrink-0 text-semantic-700" />
+          <CalendarIcon
+            className={`size-6 shrink-0  ${disabled ? "text-semantic-500" : "text-semantic-700"} `}
+          />
         </button>
 
         {helperMessage && (

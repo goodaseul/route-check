@@ -7,11 +7,14 @@ type TabProps = {
   items: TabItem[];
   value: string;
   onChange: (value: string) => void;
+  className?: string;
 };
 
-export default function Tab({ items, value, onChange }: TabProps) {
+export default function Tab({ items, value, onChange, className }: TabProps) {
   return (
-    <ul className="flex gap-2 overflow-x-auto py-1 no-scrollbar">
+    <ul
+      className={`flex gap-2 overflow-x-auto py-1 no-scrollbar ${className} `}
+    >
       {items.map((item) => {
         const isActive = value === item.value;
 

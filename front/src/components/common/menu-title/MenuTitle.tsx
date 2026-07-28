@@ -13,6 +13,7 @@ type MenuTitleProps = {
   customIcon?: React.ReactNode;
   onAction?: () => void;
   className?: string;
+  disabled?: boolean;
 };
 
 export default function MenuTitle({
@@ -21,6 +22,7 @@ export default function MenuTitle({
   customIcon,
   onAction,
   className = "",
+  disabled = false,
 }: MenuTitleProps) {
   const router = useRouter();
 
@@ -52,7 +54,10 @@ export default function MenuTitle({
         type="button"
         onClick={handleClick}
         aria-label={isBack ? "뒤로 가기" : "닫기"}
-        className={`absolute ${positionClass} top-1/2 -translate-y-1/2 w-max p-2 flex items-center justify-center text-semantic-800 hover:text-semantic-600 transition-colors`}
+        className={`absolute ${positionClass} top-1/2 -translate-y-1/2 w-max flex items-center justify-center text-semantic-800 hover:text-semantic-600 transition-colors
+        
+        ${disabled} && "bg-semantic-100 border-semantic-400  text-semantic-400 cursor-not-allowed"`}
+        disabled={disabled}
       >
         {customIcon ? (
           customIcon
