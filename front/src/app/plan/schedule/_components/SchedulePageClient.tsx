@@ -18,38 +18,38 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useState } from "react";
-import SortableScheduleItem, {
-  ScheduleItem,
-} from "./SortableScheduleItem";
-
-const INITIAL_SCHEDULES: Record<string, ScheduleItem[]> = {
-  day1: [
-    { id: "haeundae", name: "해운대 해수욕장" },
-    { id: "gwangalli", name: "광안리 해수욕장" },
-    { id: "gamcheon", name: "감천문화마을" },
-    { id: "seokbulsa", name: "석불사" },
-  ],
-};
+import SortableScheduleItem from "./SortableScheduleItem";
+import { useRouter } from "next/navigation";
+import { usePlanSchedule } from "../../_context/PlanScheduleContext";
 
 type SchedulePageClientProps = {
   date: string | null;
 };
 
-export default function SchedulePageClient({
-  date,
-}: SchedulePageClientProps) {
+export default function SchedulePageClient({ date }: SchedulePageClientProps) {
+  const router = useRouter();
+  const {
+    schedules,
+    removeScheduleItem,
+    reorderScheduleItems,
+  } = usePlanSchedule();
+
+  const handleAddPlace = () => {
+    const params = new URLSearchParams({
+      day: selectedDay,
+    });
+
+    router.push(`/plan/map?${params.toString()}`);
+  };
   const dateRange = parseDateRange(date);
 
   const totalDays = dateRange ? getInclusiveDayCount(dateRange) : 0;
   const [selectedDay, setSelectedDay] = useState("day1");
-  const [schedules, setSchedules] =
-    useState<Record<string, ScheduleItem[]>>(INITIAL_SCHEDULES);
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
@@ -72,27 +72,19 @@ export default function SchedulePageClient({
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
 
-    setSchedules((current) => {
-      const items = current[selectedDay] || [];
-      const oldIndex = items.findIndex((item) => item.id === active.id);
-      const newIndex = items.findIndex((item) => item.id === over.id);
+    const oldIndex = selectedSchedule.findIndex(
+      (item) => item.id === active.id,
+    );
+    const newIndex = selectedSchedule.findIndex(
+      (item) => item.id === over.id,
+    );
 
-      if (oldIndex < 0 || newIndex < 0) return current;
-
-      return {
-        ...current,
-        [selectedDay]: arrayMove(items, oldIndex, newIndex),
-      };
-    });
+    if (oldIndex < 0 || newIndex < 0) return;
+    reorderScheduleItems(selectedDay, oldIndex, newIndex);
   };
 
   const removeSchedule = (id: string) => {
-    setSchedules((current) => ({
-      ...current,
-      [selectedDay]: (current[selectedDay] || []).filter(
-        (item) => item.id !== id,
-      ),
-    }));
+    removeScheduleItem(selectedDay, id);
   };
 
   return (
@@ -147,7 +139,9 @@ export default function SchedulePageClient({
               </div>
             )}
 
-            <Button className="mt-5">+ 장소추가</Button>
+            <Button onClick={handleAddPlace} className="mt-5">
+              + 장소추가
+            </Button>
           </section>
         </main>
       </Inner>

@@ -47,16 +47,20 @@ export default function MenuTitle({
   };
 
   return (
-    <Inner styles={`h-20 center relative ${className}`}>
+    <Inner
+      styles={`sticky top-0 z-40 h-20 center bg-semantic-100 ${className}`}
+    >
       <h2 className="text-h3 font-semibold text-semantic-800">{children}</h2>
 
       <button
         type="button"
         onClick={handleClick}
         aria-label={isBack ? "뒤로 가기" : "닫기"}
-        className={`absolute ${positionClass} top-1/2 -translate-y-1/2 w-max flex items-center justify-center text-semantic-800 hover:text-semantic-600 transition-colors
-        
-        ${disabled} && "bg-semantic-100 border-semantic-400  text-semantic-400 cursor-not-allowed"`}
+        className={`absolute ${positionClass} top-1/2 flex w-max -translate-y-1/2 items-center justify-center transition-colors ${
+          disabled
+            ? "cursor-not-allowed text-semantic-400"
+            : "text-semantic-800 hover:text-semantic-600"
+        }`}
         disabled={disabled}
       >
         {customIcon ? (

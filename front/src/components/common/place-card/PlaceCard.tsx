@@ -18,7 +18,7 @@ export default function PlaceCard({
     <button
       type="button"
       onClick={onClick}
-      className={`p-3 rounded-2xl bg-semantic-300 w-52
+      className={`w-full min-w-0 p-3 rounded-2xl bg-semantic-300
     text-left transition-colors border-2
     ${selected ? "bg-blue-100 border-blue-500" : "bg-semantic-300 border-transparent"}
     `}
@@ -28,7 +28,7 @@ export default function PlaceCard({
           src={imageSrc ? imageSrc : "/images/default.svg"}
           alt={`${title} 이미지`}
           fill
-          className="object-cover"
+          className="rounded-btn object-cover"
         />
       </div>
       <div className="px-2">
