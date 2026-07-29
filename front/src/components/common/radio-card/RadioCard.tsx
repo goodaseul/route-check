@@ -1,13 +1,14 @@
 import { useId } from "react";
 
-type RadioCardProps = Omit<
+type RadioCardProps<T extends string> = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
-  "type" | "onChange"
+  "type" | "value" | "onChange"
 > & {
   children: React.ReactNode;
-  onChange?: (value: string) => void;
+  value: T;
+  onChange?: (value: T) => void;
 };
-export default function RadioCard({
+export default function RadioCard<T extends string>({
   id,
   name,
   value,
@@ -16,7 +17,7 @@ export default function RadioCard({
   disabled,
   onChange,
   ...props
-}: RadioCardProps) {
+}: RadioCardProps<T>) {
   const generatedId = useId();
   const radioId = id || generatedId;
 
@@ -33,7 +34,7 @@ export default function RadioCard({
         className="peer sr-only"
         disabled={disabled}
         checked={checked}
-        onChange={() => onChange?.(value as string)}
+        onChange={() => onChange?.(value)}
         {...props}
       />
       <div

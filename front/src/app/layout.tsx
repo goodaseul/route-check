@@ -3,6 +3,7 @@ import "./globals.css";
 import GoogleAuthProvider from "@/providers/GoogleOAuthProvider";
 import QueryProvider from "@/providers/QueryProvider";
 import Header from "@/components/layout/Header";
+import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
   //  metadataBase: new URL("https://route-check.com"), // 실제 도메인
@@ -38,8 +39,8 @@ export default function RootLayout({
         <div className="w-full max-w-container min-h-full flex flex-col">
           <QueryProvider>
             <GoogleAuthProvider>
-              <Header />
-              <main className="flex-1">{children}</main>
+              {children}
+              <Toaster position="bottom-center" />
             </GoogleAuthProvider>
           </QueryProvider>
         </div>

@@ -13,6 +13,7 @@ import SelectionCardDesc from "@/components/common/selection-card/SelectionCardD
 import Tab from "@/components/common/tab/Tab";
 import GoogleLogin from "@/components/features/login/GoogleLogin";
 import NaverLogin from "@/components/features/login/NaverLogin";
+import type { DateRange } from "@daypicker/react";
 import { useState } from "react";
 
 // ScoreCard start
@@ -66,7 +67,7 @@ export default function Common() {
 
   // Input start
   const [value, setValue] = useState<string>("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState<DateRange>();
   const [searchKeyword, setSearchKeyword] = useState("");
   // Input end
 

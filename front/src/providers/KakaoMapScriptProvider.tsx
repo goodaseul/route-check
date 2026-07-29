@@ -9,6 +9,11 @@ export default function KakaoMapScriptProvider({
   children: React.ReactNode;
 }) {
   const [isLoaded, setIsLoaded] = useState(false);
+  const loadMap = () => {
+    window.kakao.maps.load(() => {
+      setIsLoaded(true);
+    });
+  };
 
   return (
     <>
@@ -16,12 +21,8 @@ export default function KakaoMapScriptProvider({
       <Script
         src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&libraries=services&autoload=false`}
         strategy="afterInteractive"
-        onLoad={() => {
-          // 카카오 지도가 완전히 준비되면 전역 로드 콜백 실행
-          window.kakao.maps.load(() => {
-            setIsLoaded(true);
-          });
-        }}
+        onLoad={loadMap}
+        onReady={loadMap}
         onError={(e) => {
           console.error("카카오 지도 스크립트 로드 실패", e);
         }}

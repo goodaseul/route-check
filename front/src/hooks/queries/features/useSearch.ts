@@ -8,5 +8,8 @@ export function useSearch({ keyword }: { keyword: string }) {
     queryKey: searchKeys.keyword(keyword),
     queryFn: () => fetchSearch(keyword),
     enabled: !!keyword,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
