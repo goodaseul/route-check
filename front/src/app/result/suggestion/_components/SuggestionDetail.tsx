@@ -10,11 +10,19 @@ import SuggestionEffectCard from "./SuggestionEffectCard";
 
 type SuggestionDetailProps = {
   detail: SuggestionDetailData;
+  date: string | null;
+  day: string | null;
+  applied: string | null;
 };
 
-export default function SuggestionDetail({ detail }: SuggestionDetailProps) {
+export default function SuggestionDetail({
+  detail,
+  date,
+  day,
+  applied,
+}: SuggestionDetailProps) {
   const { viewSuggestionList, applySuggestion } =
-    useSuggestionDetailNavigation(detail.type);
+    useSuggestionDetailNavigation(detail.type, { date, day, applied });
 
   return (
     <div className="flex min-h-dvh flex-col">

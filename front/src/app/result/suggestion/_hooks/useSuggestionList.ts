@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   getInclusiveDayCount,
   parseDateRange,
@@ -10,10 +10,19 @@ import {
   SUGGESTIONS,
 } from "../_data/suggestion-list-data";
 
-export function useSuggestionList() {
+type SuggestionListParams = {
+  date: string | null;
+  day: string | null;
+  applied: string | null;
+};
+
+export function useSuggestionList({
+  date,
+  day,
+  applied,
+}: SuggestionListParams) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const dateRange = parseDateRange(searchParams.get("date"));
+  const dateRange = parseDateRange(date);
   const totalDays = dateRange
     ? getInclusiveDayCount(dateRange)
     : Object.keys(SUGGESTIONS).length;
@@ -21,19 +30,16 @@ export function useSuggestionList() {
     label: `Day ${index + 1}`,
     value: `day${index + 1}`,
   }));
-  const dayParam = searchParams.get("day");
-  const selectedDay = dayTabs.some((day) => day.value === dayParam)
-    ? dayParam!
+  const selectedDay = dayTabs.some((tab) => tab.value === day)
+    ? day!
     : "day1";
-  const appliedSuggestions = parseAppliedSuggestions(
-    searchParams.get("applied"),
-  );
+  const appliedSuggestions = parseAppliedSuggestions(applied);
   const suggestions = (SUGGESTIONS[selectedDay] ?? []).filter(
     (suggestion) => !appliedSuggestions.has(suggestion.type),
   );
 
   const changeDay = (day: string) => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = createSuggestionParams({ date, day, applied });
     params.set("day", day);
     router.replace(`/result/suggestion?${params.toString()}`, {
       scroll: false,
@@ -41,7 +47,7 @@ export function useSuggestionList() {
   };
 
   const openSuggestion = (type: string) => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = createSuggestionParams({ date, day, applied });
     params.set("day", selectedDay);
     router.push(`/result/suggestion/${type}?${params.toString()}`);
   };
@@ -53,4 +59,16 @@ export function useSuggestionList() {
     changeDay,
     openSuggestion,
   };
+}
+
+function createSuggestionParams({
+  date,
+  day,
+  applied,
+}: SuggestionListParams) {
+  const params = new URLSearchParams();
+  if (date) params.set("date", date);
+  if (day) params.set("day", day);
+  if (applied) params.set("applied", applied);
+  return params;
 }

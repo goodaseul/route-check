@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import SuggestionDetail from "../_components/SuggestionDetail";
 import {
   isSuggestionType,
@@ -9,6 +8,11 @@ import {
 
 type SuggestionDetailPageProps = {
   params: Promise<{ type: string }>;
+  searchParams: Promise<{
+    date?: string | string[];
+    day?: string | string[];
+    applied?: string | string[];
+  }>;
 };
 
 export function generateStaticParams() {
@@ -17,14 +21,22 @@ export function generateStaticParams() {
 
 export default async function SuggestionDetailPage({
   params,
+  searchParams,
 }: SuggestionDetailPageProps) {
-  const { type } = await params;
+  const [{ type }, query] = await Promise.all([params, searchParams]);
 
   if (!isSuggestionType(type)) notFound();
 
   return (
-    <Suspense fallback={null}>
-      <SuggestionDetail detail={SUGGESTION_DETAIL_DATA[type]} />
-    </Suspense>
+    <SuggestionDetail
+      detail={SUGGESTION_DETAIL_DATA[type]}
+      date={getSingleParam(query.date)}
+      day={getSingleParam(query.day)}
+      applied={getSingleParam(query.applied)}
+    />
   );
+}
+
+function getSingleParam(value: string | string[] | undefined) {
+  return typeof value === "string" ? value : null;
 }

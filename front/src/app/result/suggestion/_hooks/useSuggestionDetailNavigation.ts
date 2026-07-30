@@ -1,15 +1,22 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import type { SuggestionType } from "../_data/suggestion-detail-data";
 
-export function useSuggestionDetailNavigation(type: SuggestionType) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const dayParam = searchParams.get("day");
-  const listParams = new URLSearchParams(searchParams.toString());
+type SuggestionDetailParams = {
+  date: string | null;
+  day: string | null;
+  applied: string | null;
+};
 
-  if (dayParam && !/^day[1-5]$/.test(dayParam)) {
+export function useSuggestionDetailNavigation(
+  type: SuggestionType,
+  query: SuggestionDetailParams,
+) {
+  const router = useRouter();
+  const listParams = createSuggestionParams(query);
+
+  if (query.day && !/^day[1-5]$/.test(query.day)) {
     listParams.delete("day");
   }
 
@@ -18,7 +25,7 @@ export function useSuggestionDetailNavigation(type: SuggestionType) {
   };
 
   const applySuggestion = () => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = createSuggestionParams(query);
     const appliedSuggestions = new Set(
       (params.get("applied") ?? "").split(",").filter(Boolean),
     );
@@ -31,4 +38,16 @@ export function useSuggestionDetailNavigation(type: SuggestionType) {
     viewSuggestionList,
     applySuggestion,
   };
+}
+
+function createSuggestionParams({
+  date,
+  day,
+  applied,
+}: SuggestionDetailParams) {
+  const params = new URLSearchParams();
+  if (date) params.set("date", date);
+  if (day) params.set("day", day);
+  if (applied) params.set("applied", applied);
+  return params;
 }
