@@ -1,93 +1,39 @@
 "use client";
 import Button from "@/components/common/buttons/Button";
+import BottomActionBar from "@/components/common/buttons/BottomActionBar";
 import DateInput from "@/components/common/date-input/DateInput";
-import {
-  getInclusiveDayCount,
-  parseDateRange,
-} from "@/components/common/date-input/date-format";
 import MenuTitle from "@/components/common/menu-title/MenuTitle";
 import Tab from "@/components/common/tab/Tab";
 import Inner from "@/components/layout/Inner";
 import {
   closestCenter,
   DndContext,
-  DragEndEvent,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { useState } from "react";
 import SortableScheduleItem from "./SortableScheduleItem";
-import { useRouter } from "next/navigation";
-import { usePlanScheduleStore } from "@/stores/usePlanScheduleStore";
+import { useSchedulePage } from "../_hooks/useSchedulePage";
 
 type SchedulePageClientProps = {
   date: string | null;
 };
 
 export default function SchedulePageClient({ date }: SchedulePageClientProps) {
-  const router = useRouter();
-  const schedules = usePlanScheduleStore((state) => state.schedules);
-  const removeScheduleItem = usePlanScheduleStore(
-    (state) => state.removeScheduleItem,
-  );
-  const reorderScheduleItems = usePlanScheduleStore(
-    (state) => state.reorderScheduleItems,
-  );
-
-  const handleAddPlace = () => {
-    const params = new URLSearchParams({
-      day: selectedDay,
-    });
-
-    router.push(`/plan/map?${params.toString()}`);
-  };
-  const dateRange = parseDateRange(date);
-
-  const totalDays = dateRange ? getInclusiveDayCount(dateRange) : 0;
-  const [selectedDay, setSelectedDay] = useState("day1");
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 6 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
-
-  const dayTabItems = Array.from({ length: totalDays }, (_, index) => {
-    const dayNum = index + 1;
-    return {
-      label: `Day ${dayNum}`,
-      value: `day${dayNum}`,
-    };
-  });
-  const selectedSchedule = schedules[selectedDay] || [];
-  const hasSchedule = selectedSchedule.length > 0;
-
-  const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = selectedSchedule.findIndex(
-      (item) => item.id === active.id,
-    );
-    const newIndex = selectedSchedule.findIndex(
-      (item) => item.id === over.id,
-    );
-
-    if (oldIndex < 0 || newIndex < 0) return;
-    reorderScheduleItems(selectedDay, oldIndex, newIndex);
-  };
-
-  const removeSchedule = (id: string) => {
-    removeScheduleItem(selectedDay, id);
-  };
+  const {
+    dateRange,
+    selectedDay,
+    setSelectedDay,
+    sensors,
+    dayTabItems,
+    selectedSchedule,
+    hasSchedule,
+    addPlace,
+    analyzeSchedule,
+    handleDragEnd,
+    removeSchedule,
+  } = useSchedulePage(date);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -141,22 +87,21 @@ export default function SchedulePageClient({ date }: SchedulePageClientProps) {
               </div>
             )}
 
-            <Button onClick={handleAddPlace} className="mt-5">
+            <Button onClick={addPlace} className="mt-5">
               + 장소추가
             </Button>
           </section>
         </main>
       </Inner>
 
-      <div className="sticky bottom-0 mt-auto bg-semantic-100 px-6 pt-4 pb-6">
-        <Button
-          buttonBg="blue"
-          disabled={!hasSchedule}
-          onClick={() => router.push("/result/summary")}
-        >
-          일정 분석
-        </Button>
-      </div>
+      <BottomActionBar
+        primaryAction={{
+          label: "일정 분석",
+          buttonBg: "blue",
+          disabled: !hasSchedule,
+          onClick: analyzeSchedule,
+        }}
+      />
     </div>
   );
 }

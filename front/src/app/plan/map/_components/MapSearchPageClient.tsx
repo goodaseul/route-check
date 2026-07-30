@@ -1,138 +1,37 @@
 "use client";
 
-import Button from "@/components/common/buttons/Button";
+import BottomActionBar from "@/components/common/buttons/BottomActionBar";
 import MenuTitle from "@/components/common/menu-title/MenuTitle";
 import PlaceCard from "@/components/common/place-card/PlaceCard";
 import SearchBox from "@/components/common/search-box/SearchBox";
 import Inner from "@/components/layout/Inner";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import KakaoPlacePicker from "./KakaoPlacePicker";
-import type { Place } from "../_types";
-import { usePlanScheduleStore } from "@/stores/usePlanScheduleStore";
-import { useSearch } from "@/hooks/queries/features/useSearch";
 import Checkbox from "@/components/common/checkbox/Checkbox";
-
-type PlaceCardItem = {
-  id: string;
-  title: string;
-  desc: string;
-  imageSrc: string | null;
-  lat?: number;
-  lng?: number;
-};
-
-const RECOMMENDED_PLACES: PlaceCardItem[] = [
-  {
-    id: "haeundae",
-    title: "해운대 해수욕장",
-    desc: "부산 해운대구",
-    imageSrc: null,
-    lat: 35.1587,
-    lng: 129.1604,
-  },
-  {
-    id: "gwangalli",
-    title: "광안리 해수욕장",
-    desc: "부산 수영구",
-    imageSrc: null,
-    lat: 35.1532,
-    lng: 129.1187,
-  },
-  {
-    id: "gamcheon",
-    title: "감천문화마을",
-    desc: "부산 사하구",
-    imageSrc: null,
-    lat: 35.0974,
-    lng: 129.0106,
-  },
-  {
-    id: "seokbulsa",
-    title: "석불사",
-    desc: "부산 북구",
-    imageSrc: null,
-    lat: 35.2197,
-    lng: 129.0511,
-  },
-];
+import { RECOMMENDED_PLACES } from "../_data/recommended-places";
+import { useMapSearchPage } from "../_hooks/useMapSearchPage";
 
 type MapSearchPageClientProps = {
   day: string;
 };
 
 export default function MapSearchPageClient({ day }: MapSearchPageClientProps) {
-  const router = useRouter();
-  const addScheduleItems = usePlanScheduleStore(
-    (state) => state.addScheduleItems,
-  );
-  const [keyword, setKeyword] = useState("");
-  const [searchKeyword, setSearchKeyword] = useState("");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isMapOpen, setIsMapOpen] = useState(false);
-  const { data: searchData, isLoading } = useSearch({
-    keyword: searchKeyword,
-  });
-
-  const isSearchMode = Boolean(searchKeyword);
-  const searchPlaces: PlaceCardItem[] =
-    searchData?.results.map((place) => ({
-      id: place.contentid,
-      title: place.title,
-      desc: [place.addr1, place.addr2].filter(Boolean).join(" "),
-      imageSrc: place.firstimage || place.firstimage2 || null,
-      lat: Number(place.mapy) || undefined,
-      lng: Number(place.mapx) || undefined,
-    })) || [];
-
-  const togglePlace = (id: string) => {
-    setSelectedIds((current) =>
-      current.includes(id)
-        ? current.filter((selectedId) => selectedId !== id)
-        : [...current, id],
-    );
-  };
-
-  const changeKeyword = (value: string) => {
-    setKeyword(value);
-
-    if (!value.trim()) {
-      setSearchKeyword("");
-      setSelectedIds([]);
-    }
-  };
-
-  const searchPlacesByKeyword = (value: string) => {
-    setSearchKeyword(value);
-    setSelectedIds([]);
-  };
-
-  const addMapPlace = (place: Place) => {
-    const id = `map-${place.lat}-${place.lng}`;
-    addScheduleItems(day, [{
-      id,
-      name: place.place_name,
-      lat: place.lat,
-      lng: place.lng,
-    }]);
-    router.back();
-  };
-
-  const completeSelectedPlaces = () => {
-    const currentPlaces = isSearchMode ? searchPlaces : RECOMMENDED_PLACES;
-    const selectedPlaces = currentPlaces
-      .filter((place) => selectedIds.includes(place.id))
-      .map((place) => ({
-        id: place.id,
-        name: place.title,
-        lat: place.lat,
-        lng: place.lng,
-      }));
-
-    addScheduleItems(day, selectedPlaces);
-    router.back();
-  };
+  const {
+    keyword,
+    selectedIds,
+    isMapOpen,
+    isSearchMode,
+    searchData,
+    isLoading,
+    searchPlaces,
+    changeKeyword,
+    searchPlacesByKeyword,
+    togglePlace,
+    openMap,
+    closeMap,
+    addMapPlace,
+    completeSelectedPlaces,
+  } = useMapSearchPage(day);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -149,7 +48,7 @@ export default function MapSearchPageClient({ day }: MapSearchPageClientProps) {
 
           <button
             type="button"
-            onClick={() => setIsMapOpen(true)}
+            onClick={openMap}
             className="mt-6 flex w-full items-center gap-3 rounded-2xl bg-semantic-300 px-7 py-6 text-left"
           >
             <Image
@@ -252,24 +151,24 @@ export default function MapSearchPageClient({ day }: MapSearchPageClientProps) {
         </main>
       </Inner>
 
-      <div className="sticky bottom-0 z-30 mt-auto bg-semantic-100 px-6 pt-4 pb-6">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-14 right-0 left-0 h-14 bg-linear-to-b from-transparent to-semantic-100"
-        />
-        <Button
-          buttonBg="blue"
-          disabled={selectedIds.length === 0}
-          onClick={completeSelectedPlaces}
-        >
-          선택 완료
-          {isSearchMode && ` (${selectedIds.length}개)`}
-        </Button>
-      </div>
+      <BottomActionBar
+        withTopGradient
+        primaryAction={{
+          label: (
+            <>
+              선택 완료
+              {isSearchMode && ` (${selectedIds.length}개)`}
+            </>
+          ),
+          buttonBg: "blue",
+          disabled: selectedIds.length === 0,
+          onClick: completeSelectedPlaces,
+        }}
+      />
 
       {isMapOpen && (
         <KakaoPlacePicker
-          onClose={() => setIsMapOpen(false)}
+          onClose={closeMap}
           onSelect={addMapPlace}
         />
       )}

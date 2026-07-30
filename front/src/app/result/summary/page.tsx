@@ -4,25 +4,20 @@ import TitleSm from "@/components/common/title-sm/TitleSm";
 import Inner from "@/components/layout/Inner";
 import SummaryDetails from "./_components/SummaryDetails";
 
-const scores = [
-  {
-    id: 2,
-    score: 80,
-    deduction: 0,
-    description: "무리 없이 편안하게 다닐 수 있어요",
-  },
-];
+const result = {
+  id: 2,
+  score: 80,
+  deduction: 0,
+  description: "무리 없이 편안하게 다닐 수 있어요",
+};
 export default function SummaryPage() {
-  const score = scores[0]?.score ?? 0;
-  const isPerfectScore = score === 100;
+  const isPerfectScore = result.score === 100;
   return (
     <>
       <MenuTitle>분석 결과</MenuTitle>
       <Inner>
         <div className="flex flex-col gap-4">
-          {scores.map((item) => (
-            <ScoreCard key={item.id} {...item} />
-          ))}
+          <ScoreCard {...result} />
         </div>
         {!isPerfectScore && (
           <p className="font-medium mt-4 px-6 py-3 bg-orange text-b3 text-semantic-100 rounded-[8px]">

@@ -3,8 +3,8 @@
 import BottomActionBar from "@/components/common/buttons/BottomActionBar";
 import MenuTitle from "@/components/common/menu-title/MenuTitle";
 import Inner from "@/components/layout/Inner";
-import { useRouter, useSearchParams } from "next/navigation";
 import type { SuggestionDetail as SuggestionDetailData } from "../_data/suggestion-detail-data";
+import { useSuggestionDetailNavigation } from "../_hooks/useSuggestionDetailNavigation";
 import SuggestionChangeCard from "./SuggestionChangeCard";
 import SuggestionEffectCard from "./SuggestionEffectCard";
 
@@ -13,24 +13,8 @@ type SuggestionDetailProps = {
 };
 
 export default function SuggestionDetail({ detail }: SuggestionDetailProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const dayParam = searchParams.get("day");
-  const listParams = new URLSearchParams(searchParams.toString());
-  if (dayParam && !/^day[1-5]$/.test(dayParam)) listParams.delete("day");
-  const suggestionListUrl = `/result/suggestion?${listParams.toString()}`;
-
-  const applySuggestion = () => {
-    const params = new URLSearchParams(searchParams.toString());
-    const appliedSuggestions = new Set(
-      (params.get("applied") ?? "").split(",").filter(Boolean),
-    );
-    appliedSuggestions.add(detail.type);
-    params.set("applied", Array.from(appliedSuggestions).join(","));
-    router.push(
-      `/result/suggestion/${detail.type}/applied?${params.toString()}`,
-    );
-  };
+  const { viewSuggestionList, applySuggestion } =
+    useSuggestionDetailNavigation(detail.type);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -57,7 +41,7 @@ export default function SuggestionDetail({ detail }: SuggestionDetailProps) {
       <BottomActionBar
         secondaryAction={{
           label: "다른 제안 보기",
-          onClick: () => router.push(suggestionListUrl),
+          onClick: viewSuggestionList,
         }}
         primaryAction={{
           label: "이 제안 적용하기",

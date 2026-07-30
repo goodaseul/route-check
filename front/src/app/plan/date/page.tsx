@@ -6,37 +6,23 @@ import MenuTitle from "@/components/common/menu-title/MenuTitle";
 import RadioCard from "@/components/common/radio-card/RadioCard";
 import Title from "@/components/common/title/Title";
 import Inner from "@/components/layout/Inner";
-import Button from "@/components/common/buttons/Button";
-import type { DateRange } from "@daypicker/react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { formatDateRange } from "@/components/common/date-input/date-format";
-
-type Transport = "car" | "public";
+import BottomActionBar from "@/components/common/buttons/BottomActionBar";
+import { usePlanDate } from "./_hooks/usePlanDate";
 
 export default function DatePage() {
-  const router = useRouter();
-
-  const [selectedTransport, setSelectedTransport] = useState<Transport | null>(
-    null,
-  );
-  const [dateRange, setDateRange] = useState<DateRange>();
-  const canContinue = Boolean(selectedTransport && dateRange?.from);
-
-  const handleNext = () => {
-    if (!selectedTransport || !dateRange?.from) return;
-
-    const searchParams = new URLSearchParams({
-      transport: selectedTransport,
-      date: formatDateRange(dateRange),
-    });
-    router.push(`/plan/schedule?${searchParams.toString()}`);
-  };
+  const {
+    selectedTransport,
+    setSelectedTransport,
+    dateRange,
+    setDateRange,
+    canContinue,
+    goToSchedule,
+  } = usePlanDate();
 
   return (
-    <>
+    <div className="flex min-h-dvh flex-col">
       <MenuTitle>여행 기본 정보</MenuTitle>
-      <Inner>
+      <Inner styles="flex-1">
         <main className="pt-30 pb-10">
           <section className="flex flex-col gap-3 mb-40">
             <Title>언제, 어떻게 떠나시나요</Title>
@@ -47,13 +33,7 @@ export default function DatePage() {
             </Desc>
           </section>
           <section>
-            <form
-              className="flex flex-col gap-8"
-              onSubmit={(event) => {
-                event.preventDefault();
-                handleNext();
-              }}
-            >
+            <div className="flex flex-col gap-8">
               <fieldset>
                 <legend className="text-b2 font-semibold text-semantic-800">
                   이동수단
@@ -83,13 +63,19 @@ export default function DatePage() {
                 onChange={setDateRange}
                 helperMessage="여행은 최대 5일까지 선택할 수 있어요"
               />
-              <Button type="submit" buttonBg="blue" disabled={!canContinue}>
-                다음
-              </Button>
-            </form>
+            </div>
           </section>
         </main>
       </Inner>
-    </>
+
+      <BottomActionBar
+        primaryAction={{
+          label: "다음",
+          buttonBg: "blue",
+          disabled: !canContinue,
+          onClick: goToSchedule,
+        }}
+      />
+    </div>
   );
 }

@@ -3,46 +3,13 @@
 import MenuTitle from "@/components/common/menu-title/MenuTitle";
 import Tab from "@/components/common/tab/Tab";
 import Inner from "@/components/layout/Inner";
-import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import {
-  parseAppliedSuggestions,
-  SUGGESTIONS,
-} from "./_data/suggestion-list-data";
 import SuggestionCard from "./_components/SuggestionCard";
-
-const DAY_TABS = Array.from({ length: 3 }, (_, index) => ({
-  label: `Day ${index + 1}`,
-  value: `day${index + 1}`,
-}));
+import { DAY_TABS, useSuggestionList } from "./_hooks/useSuggestionList";
 
 function SuggestionPageContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const dayParam = searchParams.get("day");
-  const selectedDay = DAY_TABS.some((day) => day.value === dayParam)
-    ? dayParam!
-    : "day1";
-  const appliedSuggestions = parseAppliedSuggestions(
-    searchParams.get("applied"),
-  );
-  const suggestions = (SUGGESTIONS[selectedDay] ?? []).filter(
-    (suggestion) => !appliedSuggestions.has(suggestion.type),
-  );
-
-  const changeDay = (day: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("day", day);
-    router.replace(`/result/suggestion?${params.toString()}`, {
-      scroll: false,
-    });
-  };
-
-  const openSuggestion = (type: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("day", selectedDay);
-    router.push(`/result/suggestion/${type}?${params.toString()}`);
-  };
+  const { selectedDay, suggestions, changeDay, openSuggestion } =
+    useSuggestionList();
 
   return (
     <>
