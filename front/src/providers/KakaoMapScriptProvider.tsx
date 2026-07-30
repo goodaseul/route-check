@@ -30,7 +30,7 @@ export default function KakaoMapScriptProvider({
 
       {/* 로딩 완료 전에는 안전하게 대기 UI 표시 */}
       {!isLoaded ? (
-        <div className="flex items-center justify-center min-h-screen text-gray-500 text-sm font-medium">
+        <div className="flex h-full min-h-40 items-center justify-center text-sm font-medium text-semantic-600">
           지도를 준비하는 중입니다...
         </div>
       ) : (

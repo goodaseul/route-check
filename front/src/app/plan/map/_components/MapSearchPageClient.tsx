@@ -19,6 +19,8 @@ type PlaceCardItem = {
   title: string;
   desc: string;
   imageSrc: string | null;
+  lat?: number;
+  lng?: number;
 };
 
 const RECOMMENDED_PLACES: PlaceCardItem[] = [
@@ -27,24 +29,32 @@ const RECOMMENDED_PLACES: PlaceCardItem[] = [
     title: "해운대 해수욕장",
     desc: "부산 해운대구",
     imageSrc: null,
+    lat: 35.1587,
+    lng: 129.1604,
   },
   {
     id: "gwangalli",
     title: "광안리 해수욕장",
     desc: "부산 수영구",
     imageSrc: null,
+    lat: 35.1532,
+    lng: 129.1187,
   },
   {
     id: "gamcheon",
     title: "감천문화마을",
     desc: "부산 사하구",
     imageSrc: null,
+    lat: 35.0974,
+    lng: 129.0106,
   },
   {
     id: "seokbulsa",
     title: "석불사",
     desc: "부산 북구",
     imageSrc: null,
+    lat: 35.2197,
+    lng: 129.0511,
   },
 ];
 
@@ -70,6 +80,8 @@ export default function MapSearchPageClient({ day }: MapSearchPageClientProps) {
       title: place.title,
       desc: [place.addr1, place.addr2].filter(Boolean).join(" "),
       imageSrc: place.firstimage || place.firstimage2 || null,
+      lat: Number(place.mapy) || undefined,
+      lng: Number(place.mapx) || undefined,
     })) || [];
 
   const togglePlace = (id: string) => {
@@ -96,7 +108,12 @@ export default function MapSearchPageClient({ day }: MapSearchPageClientProps) {
 
   const addMapPlace = (place: Place) => {
     const id = `map-${place.lat}-${place.lng}`;
-    addScheduleItems(day, [{ id, name: place.place_name }]);
+    addScheduleItems(day, [{
+      id,
+      name: place.place_name,
+      lat: place.lat,
+      lng: place.lng,
+    }]);
     router.back();
   };
 
@@ -107,6 +124,8 @@ export default function MapSearchPageClient({ day }: MapSearchPageClientProps) {
       .map((place) => ({
         id: place.id,
         name: place.title,
+        lat: place.lat,
+        lng: place.lng,
       }));
 
     addScheduleItems(day, selectedPlaces);

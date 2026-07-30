@@ -11,6 +11,8 @@ export type ScheduleItem = {
   id: string;
   name: string;
   travelTime?: string;
+  lat?: number;
+  lng?: number;
 };
 
 type PlanScheduleContextValue = {
@@ -26,10 +28,10 @@ type PlanScheduleContextValue = {
 
 const INITIAL_SCHEDULES: Record<string, ScheduleItem[]> = {
   day1: [
-    { id: "haeundae", name: "해운대 해수욕장" },
-    { id: "gwangalli", name: "광안리 해수욕장" },
-    { id: "gamcheon", name: "감천문화마을" },
-    { id: "seokbulsa", name: "석불사" },
+    { id: "haeundae", name: "해운대 해수욕장", lat: 35.1587, lng: 129.1604 },
+    { id: "gwangalli", name: "광안리 해수욕장", lat: 35.1532, lng: 129.1187 },
+    { id: "gamcheon", name: "감천문화마을", lat: 35.0974, lng: 129.0106 },
+    { id: "seokbulsa", name: "석불사", lat: 35.2197, lng: 129.0511 },
   ],
 };
 

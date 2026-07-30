@@ -147,7 +147,11 @@ export default function SchedulePageClient({ date }: SchedulePageClientProps) {
       </Inner>
 
       <div className="sticky bottom-0 mt-auto bg-semantic-100 px-6 pt-4 pb-6">
-        <Button buttonBg="blue" disabled={!hasSchedule}>
+        <Button
+          buttonBg="blue"
+          disabled={!hasSchedule}
+          onClick={() => router.push("/result/summary")}
+        >
           일정 분석
         </Button>
       </div>
