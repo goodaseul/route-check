@@ -14,6 +14,7 @@ type AppliedSuggestionPageProps = {
   searchParams: Promise<{
     day?: string | string[];
     applied?: string | string[];
+    date?: string | string[];
   }>;
 };
 
@@ -42,6 +43,7 @@ export default async function AppliedSuggestionPage({
       detail={SUGGESTION_DETAIL_DATA[type]}
       day={day}
       applied={applied}
+      date={typeof query.date === "string" ? query.date : null}
       hasRemainingSuggestions={hasRemainingSuggestions}
     />
   );

@@ -7,10 +7,12 @@ import SummaryStatsCard from "./SummaryStatsCard";
 
 type SummaryDetailsProps = {
   isPerfectScore: boolean;
+  date: string | null;
 };
 
 export default function SummaryDetails({
   isPerfectScore,
+  date,
 }: SummaryDetailsProps) {
   const schedules = usePlanScheduleStore((state) => state.schedules);
   const scheduleItems = Object.values(schedules).flat();
@@ -43,6 +45,7 @@ export default function SummaryDetails({
       <RoutePreview
         positions={positions}
         isPerfectScore={isPerfectScore}
+        date={date}
       />
     </>
   );

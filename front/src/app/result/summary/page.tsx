@@ -10,7 +10,12 @@ const result = {
   deduction: 0,
   description: "무리 없이 편안하게 다닐 수 있어요",
 };
-export default function SummaryPage() {
+type SummaryPageProps = {
+  searchParams: Promise<{ date?: string | string[] }>;
+};
+
+export default async function SummaryPage({ searchParams }: SummaryPageProps) {
+  const { date } = await searchParams;
   const isPerfectScore = result.score === 100;
   return (
     <>
@@ -28,7 +33,10 @@ export default function SummaryPage() {
         <div className="pt-12 pb-6">
           <TitleSm>일정 요약</TitleSm>
         </div>
-        <SummaryDetails isPerfectScore={isPerfectScore} />
+        <SummaryDetails
+          isPerfectScore={isPerfectScore}
+          date={typeof date === "string" ? date : null}
+        />
       </Inner>
     </>
   );

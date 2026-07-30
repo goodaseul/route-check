@@ -49,7 +49,10 @@ export function useSchedulePage(date: string | null) {
   };
 
   const analyzeSchedule = () => {
-    router.push("/result/summary");
+    const params = new URLSearchParams();
+    if (date) params.set("date", date);
+    const query = params.toString();
+    router.push(`/result/summary${query ? `?${query}` : ""}`);
   };
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {

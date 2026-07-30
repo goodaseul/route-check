@@ -2,20 +2,27 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  getInclusiveDayCount,
+  parseDateRange,
+} from "@/components/common/date-input/date-format";
+import {
   parseAppliedSuggestions,
   SUGGESTIONS,
 } from "../_data/suggestion-list-data";
 
-export const DAY_TABS = Array.from({ length: 3 }, (_, index) => ({
-  label: `Day ${index + 1}`,
-  value: `day${index + 1}`,
-}));
-
 export function useSuggestionList() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const dateRange = parseDateRange(searchParams.get("date"));
+  const totalDays = dateRange
+    ? getInclusiveDayCount(dateRange)
+    : Object.keys(SUGGESTIONS).length;
+  const dayTabs = Array.from({ length: totalDays }, (_, index) => ({
+    label: `Day ${index + 1}`,
+    value: `day${index + 1}`,
+  }));
   const dayParam = searchParams.get("day");
-  const selectedDay = DAY_TABS.some((day) => day.value === dayParam)
+  const selectedDay = dayTabs.some((day) => day.value === dayParam)
     ? dayParam!
     : "day1";
   const appliedSuggestions = parseAppliedSuggestions(
@@ -40,6 +47,7 @@ export function useSuggestionList() {
   };
 
   return {
+    dayTabs,
     selectedDay,
     suggestions,
     changeDay,

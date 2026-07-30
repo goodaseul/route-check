@@ -5,10 +5,10 @@ import Tab from "@/components/common/tab/Tab";
 import Inner from "@/components/layout/Inner";
 import { Suspense } from "react";
 import SuggestionCard from "./_components/SuggestionCard";
-import { DAY_TABS, useSuggestionList } from "./_hooks/useSuggestionList";
+import { useSuggestionList } from "./_hooks/useSuggestionList";
 
 function SuggestionPageContent() {
-  const { selectedDay, suggestions, changeDay, openSuggestion } =
+  const { dayTabs, selectedDay, suggestions, changeDay, openSuggestion } =
     useSuggestionList();
 
   return (
@@ -16,7 +16,7 @@ function SuggestionPageContent() {
       <MenuTitle>개선 제안</MenuTitle>
       <Inner>
         <main className="pt-8 pb-10">
-          <Tab items={DAY_TABS} value={selectedDay} onChange={changeDay} />
+          <Tab items={dayTabs} value={selectedDay} onChange={changeDay} />
 
           <section className="mt-12">
             <h1 className="text-h3 font-bold text-semantic-800">개선 제안</h1>

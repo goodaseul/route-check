@@ -12,6 +12,7 @@ type AppliedSuggestionResultProps = {
   detail: SuggestionDetail;
   day: string;
   applied: string;
+  date: string | null;
   hasRemainingSuggestions: boolean;
 };
 
@@ -19,10 +20,13 @@ export default function AppliedSuggestionResult({
   detail,
   day,
   applied,
+  date,
   hasRemainingSuggestions,
 }: AppliedSuggestionResultProps) {
   const router = useRouter();
-  const query = new URLSearchParams({ day, applied }).toString();
+  const params = new URLSearchParams({ day, applied });
+  if (date) params.set("date", date);
+  const query = params.toString();
 
   return (
     <div className="flex min-h-dvh flex-col">
