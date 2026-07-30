@@ -2,12 +2,12 @@ import MenuTitle from "@/components/common/menu-title/MenuTitle";
 import ScoreCard from "@/components/common/score-card/ScoreCard";
 import TitleSm from "@/components/common/title-sm/TitleSm";
 import Inner from "@/components/layout/Inner";
-import SummaryDetails from "./SummaryDetails";
+import SummaryDetails from "./_components/SummaryDetails";
 
 const scores = [
   {
     id: 2,
-    score: 100,
+    score: 80,
     deduction: 0,
     description: "무리 없이 편안하게 다닐 수 있어요",
   },

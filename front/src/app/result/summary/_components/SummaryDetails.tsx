@@ -104,7 +104,7 @@ export default function SummaryDetails({
 
       <section className="pt-14 pb-6">
         <TitleSm>이동 미리보기</TitleSm>
-        <div className="mt-6 overflow-hidden rounded-card bg-semantic-300">
+        <div className="mt-6 overflow-hidden rounded-t-card bg-semantic-300">
           <div className="relative h-52">
             {positions.length > 0 ? (
               <KakaoMapScriptProvider>
@@ -134,7 +134,7 @@ export default function SummaryDetails({
                 </Button>
                 <Button
                   buttonBg="blue"
-                  onClick={() => router.push("/plan/schedule")}
+                  onClick={() => router.push("/result/suggestion")}
                 >
                   제안 보기
                 </Button>
