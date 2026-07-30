@@ -4,6 +4,7 @@ import MenuTitle from "@/components/common/menu-title/MenuTitle";
 import Tab from "@/components/common/tab/Tab";
 import Inner from "@/components/layout/Inner";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import {
   parseAppliedSuggestions,
   SUGGESTIONS,
@@ -15,7 +16,7 @@ const DAY_TABS = Array.from({ length: 3 }, (_, index) => ({
   value: `day${index + 1}`,
 }));
 
-export default function SuggestionPage() {
+function SuggestionPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dayParam = searchParams.get("day");
@@ -87,5 +88,13 @@ export default function SuggestionPage() {
         </main>
       </Inner>
     </>
+  );
+}
+
+export default function SuggestionPage() {
+  return (
+    <Suspense fallback={null}>
+      <SuggestionPageContent />
+    </Suspense>
   );
 }

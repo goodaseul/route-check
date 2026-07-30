@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import KakaoPlacePicker from "./KakaoPlacePicker";
 import type { Place } from "../_types";
-import { usePlanSchedule } from "../../_context/PlanScheduleContext";
+import { usePlanScheduleStore } from "@/stores/usePlanScheduleStore";
 import { useSearch } from "@/hooks/queries/features/useSearch";
 import Checkbox from "@/components/common/checkbox/Checkbox";
 
@@ -64,7 +64,9 @@ type MapSearchPageClientProps = {
 
 export default function MapSearchPageClient({ day }: MapSearchPageClientProps) {
   const router = useRouter();
-  const { addScheduleItems } = usePlanSchedule();
+  const addScheduleItems = usePlanScheduleStore(
+    (state) => state.addScheduleItems,
+  );
   const [keyword, setKeyword] = useState("");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

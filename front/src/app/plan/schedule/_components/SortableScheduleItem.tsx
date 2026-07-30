@@ -3,7 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Menu, X } from "lucide-react";
-import type { ScheduleItem } from "../../_context/PlanScheduleContext";
+import type { ScheduleItem } from "@/stores/usePlanScheduleStore";
 
 type SortableScheduleItemProps = {
   item: ScheduleItem;

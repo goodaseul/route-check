@@ -25,7 +25,7 @@ import {
 import { useState } from "react";
 import SortableScheduleItem from "./SortableScheduleItem";
 import { useRouter } from "next/navigation";
-import { usePlanSchedule } from "../../_context/PlanScheduleContext";
+import { usePlanScheduleStore } from "@/stores/usePlanScheduleStore";
 
 type SchedulePageClientProps = {
   date: string | null;
@@ -33,11 +33,13 @@ type SchedulePageClientProps = {
 
 export default function SchedulePageClient({ date }: SchedulePageClientProps) {
   const router = useRouter();
-  const {
-    schedules,
-    removeScheduleItem,
-    reorderScheduleItems,
-  } = usePlanSchedule();
+  const schedules = usePlanScheduleStore((state) => state.schedules);
+  const removeScheduleItem = usePlanScheduleStore(
+    (state) => state.removeScheduleItem,
+  );
+  const reorderScheduleItems = usePlanScheduleStore(
+    (state) => state.reorderScheduleItems,
+  );
 
   const handleAddPlace = () => {
     const params = new URLSearchParams({

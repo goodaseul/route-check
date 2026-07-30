@@ -1,6 +1,6 @@
 "use client";
 
-import { usePlanSchedule } from "@/app/plan/_context/PlanScheduleContext";
+import { usePlanScheduleStore } from "@/stores/usePlanScheduleStore";
 import { useMemo } from "react";
 import RoutePreview from "./RoutePreview";
 import SummaryStatsCard from "./SummaryStatsCard";
@@ -12,7 +12,7 @@ type SummaryDetailsProps = {
 export default function SummaryDetails({
   isPerfectScore,
 }: SummaryDetailsProps) {
-  const { schedules } = usePlanSchedule();
+  const schedules = usePlanScheduleStore((state) => state.schedules);
   const scheduleItems = Object.values(schedules).flat();
   const positions = useMemo(
     () =>

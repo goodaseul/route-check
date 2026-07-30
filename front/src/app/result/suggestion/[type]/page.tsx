@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import SuggestionDetail from "../_components/SuggestionDetail";
 import {
   isSuggestionType,
@@ -21,5 +22,9 @@ export default async function SuggestionDetailPage({
 
   if (!isSuggestionType(type)) notFound();
 
-  return <SuggestionDetail detail={SUGGESTION_DETAIL_DATA[type]} />;
+  return (
+    <Suspense fallback={null}>
+      <SuggestionDetail detail={SUGGESTION_DETAIL_DATA[type]} />
+    </Suspense>
+  );
 }
