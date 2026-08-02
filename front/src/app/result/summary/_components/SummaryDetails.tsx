@@ -7,11 +7,13 @@ import SummaryStatsCard from "./SummaryStatsCard";
 
 type SummaryDetailsProps = {
   isPerfectScore: boolean;
+  isConfirmed: boolean;
   date: string | null;
 };
 
 export default function SummaryDetails({
   isPerfectScore,
+  isConfirmed,
   date,
 }: SummaryDetailsProps) {
   const schedules = usePlanScheduleStore((state) => state.schedules);
@@ -30,12 +32,21 @@ export default function SummaryDetails({
   );
 
   const summary = [
-    { label: "총 이동 거리", value: "28.4km" },
-    { label: "총 이동 시간", value: "2시간 45분" },
+    {
+      label: "총 이동 거리",
+      value: "28.4km",
+      change: isConfirmed ? "-4.2km" : undefined,
+    },
+    {
+      label: "총 이동 시간",
+      value: isConfirmed ? "2시간 10분" : "2시간 45분",
+      change: isConfirmed ? "-35분" : undefined,
+    },
     { label: "총 방문 장소 수", value: `${scheduleItems.length}곳` },
     {
       label: "전체 예상 소요 시간 (이동+체류)",
-      value: "26시간 30분",
+      value: isConfirmed ? "26시간 10분" : "26시간 30분",
+      change: isConfirmed ? "-20분" : undefined,
     },
   ];
 
@@ -45,6 +56,7 @@ export default function SummaryDetails({
       <RoutePreview
         positions={positions}
         isPerfectScore={isPerfectScore}
+        isConfirmed={isConfirmed}
         date={date}
       />
     </>

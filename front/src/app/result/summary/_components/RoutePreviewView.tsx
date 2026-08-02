@@ -6,7 +6,9 @@ import RouteMap, { type RoutePosition } from "./RouteMap";
 type RoutePreviewViewProps = {
   positions: RoutePosition[];
   isPerfectScore: boolean;
+  isConfirmed: boolean;
   onContinue: () => void;
+  onEditSchedule: () => void;
   onViewSuggestion: () => void;
   onSave: () => void;
 };
@@ -14,10 +16,14 @@ type RoutePreviewViewProps = {
 export default function RoutePreviewView({
   positions,
   isPerfectScore,
+  isConfirmed,
   onContinue,
+  onEditSchedule,
   onViewSuggestion,
   onSave,
 }: RoutePreviewViewProps) {
+  const isFinalized = isPerfectScore || isConfirmed;
+
   return (
     <section className="pt-14 pb-6">
       <TitleSm>이동 미리보기</TitleSm>
@@ -40,8 +46,12 @@ export default function RoutePreviewView({
         <BottomActionBar
           className="static p-0"
           secondaryAction={
-            isPerfectScore
-              ? undefined
+            isFinalized
+              ? {
+                  label: "일정 다시 짜기",
+                  buttonBg: "white",
+                  onClick: onEditSchedule,
+                }
               : {
                   label: "이대로 진행",
                   buttonBg: "white",
@@ -49,7 +59,7 @@ export default function RoutePreviewView({
                 }
           }
           primaryAction={
-            isPerfectScore
+            isFinalized
               ? {
                   label: "저장하기",
                   buttonBg: "blue",
