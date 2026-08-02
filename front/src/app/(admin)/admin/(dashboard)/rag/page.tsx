@@ -11,7 +11,6 @@ import {
   AlertCircle,
   Trash2,
   RefreshCw,
-  ArrowRight,
   FileCheck,
   AlertTriangle
 } from "lucide-react";
@@ -150,8 +149,12 @@ export default function RagPage() {
       for (let i = 0; i < filesList.length; i++) {
         await uploadMut.mutateAsync(filesList[i]);
       }
-    } catch (err: any) {
-      setUploadError(err.message || "파일 업로드에 실패했습니다. 컬럼 구성을 확인하세요.");
+    } catch (error: unknown) {
+      setUploadError(
+        error instanceof Error
+          ? error.message
+          : "파일 업로드에 실패했습니다. 컬럼 구성을 확인하세요.",
+      );
     }
   };
 

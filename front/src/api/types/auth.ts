@@ -1,13 +1,13 @@
-export interface LoginRequest {
+export type LoginRequest = {
   auth_provider: string;
   provider_user_id: string;
   email: string;
   name: string;
   nickname: string;
   profile_image: string;
-}
+};
 
-export interface LoginResponse {
+export type LoginResponse = {
   id: number;
   email: string;
   name: string;
@@ -19,4 +19,4 @@ export interface LoginResponse {
   created_at: string;
   updated_at: string;
   deleted_at: string;
-}
+};

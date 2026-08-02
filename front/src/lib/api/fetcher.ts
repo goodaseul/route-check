@@ -1,8 +1,8 @@
-interface FetcherOptions {
+type FetcherOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   params?: Record<string, string>;
   body?: unknown;
-}
+};
 
 export default async function fetcher<T>(
   url: string,

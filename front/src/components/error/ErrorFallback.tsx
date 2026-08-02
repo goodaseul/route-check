@@ -1,7 +1,7 @@
-interface ErrorFallbackProps {
+type ErrorFallbackProps = {
   error: Error;
   resetErrorBoundary: () => void;
-}
+};
 
 export default function ErrorFallback({
   error,
@@ -14,6 +14,7 @@ export default function ErrorFallback({
         {error.message}
       </pre>
       <button
+        type="button"
         onClick={resetErrorBoundary}
         className="mt-2 px-3 py-1 bg-gray-200 rounded"
       >

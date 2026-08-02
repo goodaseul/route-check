@@ -1,22 +1,31 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import GoogleAuthProvider from "@/providers/GoogleOAuthProvider";
 import QueryProvider from "@/providers/QueryProvider";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import Header from "@/components/layout/Header";
+import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
+  //  metadataBase: new URL("https://route-check.com"), // 실제 도메인
+
   title: "Route-check",
-  description: "여행 가기전에, 여행의 완성도를 올려보자!",
+  description: "여행 가기 전에, 여행의 완성도를 올려보자!",
+
+  openGraph: {
+    title: "Route-check",
+    description: "여행 가기 전에, 여행의 완성도를 올려보자!",
+    siteName: "Route-check",
+    images: [
+      {
+        url: "/opengraph-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Route-check Graph Image",
+      },
+    ],
+    locale: "ko_KR",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -25,14 +34,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="ko"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
-        <QueryProvider>
-          <GoogleAuthProvider>{children}</GoogleAuthProvider>
-        </QueryProvider>
+    <html lang="ko" className="h-full antialiased bg-semantic-100">
+      <body className="min-h-full flex flex-col justify-start items-center">
+        <div className="w-full max-w-container min-h-full flex flex-col">
+          <QueryProvider>
+            <GoogleAuthProvider>
+              {children}
+              <Toaster position="bottom-center" />
+            </GoogleAuthProvider>
+          </QueryProvider>
+        </div>
       </body>
     </html>
   );

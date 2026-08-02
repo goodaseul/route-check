@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { AdminButton } from "@/app/(admin)/_components/admin-button";
 import { AdminPanelFooter } from "@/app/(admin)/_components/admin-panel-footer";
 import {
   AdminPagination,
