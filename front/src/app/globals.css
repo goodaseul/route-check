@@ -25,6 +25,8 @@
     --color-green-500: #35a978;
     --color-green-100: #d3eee3;
 
+    --color-orange: #f17f4a;
+
     --background: var(--color-semantic-100);
     --foreground: var(--color-semantic-800);
   }
@@ -45,6 +47,7 @@
   --color-blue-100: var(--color-blue-100);
   --color-green-500: var(--color-green-500);
   --color-green-100: var(--color-green-100);
+  --color-orange: var(--color-orange);
 
   --color-semantic-100: var(--color-semantic-100);
   --color-semantic-300: var(--color-semantic-300);
@@ -107,6 +110,11 @@ body {
   .text-d1 {
     font-size: 12px;
     line-height: 16px;
+  }
+
+  .text-d2 {
+    font-size: 10px;
+    line-height: 14px;
   }
 
   .center {

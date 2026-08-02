@@ -1,6 +1,6 @@
 type ButtonState = "blue" | "white";
 
-type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   children: React.ReactNode;
   buttonBg?: ButtonState;
   disabled?: boolean;
