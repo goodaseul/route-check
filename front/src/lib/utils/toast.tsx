@@ -8,7 +8,7 @@ export const showToast = (message: string) => {
     (t) => (
       <div
         className={`
-            w-full px-5 h-14
+            max-w-108 w-full px-5 h-14
             flex items-center justify-center gap-1.5 bg-semantic-900 text-semantic-100 
             rounded-full shadow-lg text-b1 font-medium
             transition-all duration-200 ease-in-out
