@@ -2,6 +2,8 @@ import {
   Database,
   UserCog,
   Users,
+  Key,
+  Sliders,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,6 +30,13 @@ export const adminNavGroups: AdminNavGroup[] = [
     items: [
       { title: "사용자 관리", href: "/admin/users", icon: Users },
       { title: "어드민 관리", href: "/admin/admins", icon: UserCog },
+    ],
+  },
+  {
+    label: "시스템 설정",
+    items: [
+      { title: "사용 API 관리", href: "/admin/settings/apis", icon: Key },
+      { title: "환경 변수 관리", href: "/admin/settings/envs", icon: Sliders },
     ],
   },
 ];

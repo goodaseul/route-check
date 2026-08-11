@@ -4,9 +4,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers.search import router as search_router
 from routers.simulation import router as simulation_router
-from routers.admin.auth import router as admin_auth_router
-from routers.admin.user import router as admin_user_router
-from routers.admin.user_management import router as user_management_router
+# 관리자 API 임시 비활성화
+# from routers.admin.auth import router as admin_auth_router
+# from routers.admin.user import router as admin_user_router
+# from routers.admin.user_management import router as user_management_router
+# from routers.admin.settings import router as admin_settings_router
 from routers.auth import router as auth_router
 # from scheduler import start_scheduler
 
@@ -75,9 +77,11 @@ app.add_middleware(
 # 라우터 장착
 app.include_router(search_router)
 app.include_router(simulation_router)
-app.include_router(admin_auth_router)
-app.include_router(admin_user_router)
-app.include_router(user_management_router)
+# 관리자 API 임시 비활성화
+# app.include_router(admin_auth_router)
+# app.include_router(admin_user_router)
+# app.include_router(user_management_router)
+# app.include_router(admin_settings_router)
 app.include_router(auth_router)
 
 @app.get("/")
