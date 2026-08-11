@@ -18,9 +18,13 @@ import { useSchedulePage } from "../_hooks/useSchedulePage";
 
 type SchedulePageClientProps = {
   date: string | null;
+  transport: "car" | "public";
 };
 
-export default function SchedulePageClient({ date }: SchedulePageClientProps) {
+export default function SchedulePageClient({
+  date,
+  transport,
+}: SchedulePageClientProps) {
   const {
     dateRange,
     selectedDay,
@@ -29,11 +33,12 @@ export default function SchedulePageClient({ date }: SchedulePageClientProps) {
     dayTabItems,
     selectedSchedule,
     hasSchedule,
+    isAnalyzing,
     addPlace,
     analyzeSchedule,
     handleDragEnd,
     removeSchedule,
-  } = useSchedulePage(date);
+  } = useSchedulePage(date, transport);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -96,9 +101,9 @@ export default function SchedulePageClient({ date }: SchedulePageClientProps) {
 
       <BottomActionBar
         primaryAction={{
-          label: "일정 분석",
+          label: isAnalyzing ? "일정 분석 중..." : "일정 분석",
           buttonBg: "blue",
-          disabled: !hasSchedule,
+          disabled: !hasSchedule || isAnalyzing,
           onClick: analyzeSchedule,
         }}
       />

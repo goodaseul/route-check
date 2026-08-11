@@ -8,7 +8,6 @@ import Inner from "@/components/layout/Inner";
 import Image from "next/image";
 import KakaoPlacePicker from "./KakaoPlacePicker";
 import Checkbox from "@/components/common/checkbox/Checkbox";
-import { RECOMMENDED_PLACES } from "../_data/recommended-places";
 import { useMapSearchPage } from "../_hooks/useMapSearchPage";
 
 type MapSearchPageClientProps = {
@@ -24,6 +23,8 @@ export default function MapSearchPageClient({ day }: MapSearchPageClientProps) {
     searchData,
     isLoading,
     searchPlaces,
+    recommendedPlaces,
+    isRecommendationsLoading,
     changeKeyword,
     searchPlacesByKeyword,
     togglePlace,
@@ -134,18 +135,28 @@ export default function MapSearchPageClient({ day }: MapSearchPageClientProps) {
                 </div>
               )
             ) : (
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                {RECOMMENDED_PLACES.map((place) => (
-                  <PlaceCard
-                    key={place.id}
-                    imageSrc={place.imageSrc}
-                    title={place.title}
-                    desc={place.desc}
-                    selected={selectedIds.includes(place.id)}
-                    onClick={() => togglePlace(place.id)}
-                  />
-                ))}
-              </div>
+              isRecommendationsLoading ? (
+                <div className="py-16 text-center text-b2 text-semantic-600">
+                  추천 장소를 불러오는 중...
+                </div>
+              ) : recommendedPlaces.length > 0 ? (
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  {recommendedPlaces.map((place) => (
+                    <PlaceCard
+                      key={place.id}
+                      imageSrc={place.imageSrc}
+                      title={place.title}
+                      desc={place.desc}
+                      selected={selectedIds.includes(place.id)}
+                      onClick={() => togglePlace(place.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="py-16 text-center text-b2 text-semantic-600">
+                  추천 장소를 불러오지 못했어요
+                </div>
+              )
             )}
           </section>
         </main>
@@ -157,7 +168,7 @@ export default function MapSearchPageClient({ day }: MapSearchPageClientProps) {
           label: (
             <>
               선택 완료
-              {isSearchMode && ` (${selectedIds.length}개)`}
+              {selectedIds.length > 0 && ` (${selectedIds.length}개)`}
             </>
           ),
           buttonBg: "blue",

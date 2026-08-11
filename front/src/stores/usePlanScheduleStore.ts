@@ -5,7 +5,10 @@ import { persist } from "zustand/middleware";
 
 export type ScheduleItem = {
   id: string;
+  contentId: number;
   name: string;
+  address?: string;
+  imageSrc?: string | null;
   travelTime?: string;
   lat?: number;
   lng?: number;
@@ -13,6 +16,7 @@ export type ScheduleItem = {
 
 type PlanScheduleState = {
   schedules: Record<string, ScheduleItem[]>;
+  analysisResult: import("@/api/types/simulation").SimulationResponse | null;
   addScheduleItems: (day: string, items: ScheduleItem[]) => void;
   removeScheduleItem: (day: string, id: string) => void;
   reorderScheduleItems: (
@@ -21,12 +25,16 @@ type PlanScheduleState = {
     newIndex: number,
   ) => void;
   resetSchedules: () => void;
+  setAnalysisResult: (
+    result: import("@/api/types/simulation").SimulationResponse | null,
+  ) => void;
 };
 
 export const usePlanScheduleStore = create<PlanScheduleState>()(
   persist(
     (set) => ({
       schedules: {},
+      analysisResult: null,
 
       addScheduleItems: (day, items) => {
         set((state) => {
@@ -70,13 +78,17 @@ export const usePlanScheduleStore = create<PlanScheduleState>()(
         });
       },
 
-      resetSchedules: () => set({ schedules: {} }),
+      resetSchedules: () => set({ schedules: {}, analysisResult: null }),
+      setAnalysisResult: (analysisResult) => set({ analysisResult }),
     }),
     {
       name: "route-check-plan-schedules",
-      version: 1,
+      version: 2,
       skipHydration: true,
-      partialize: (state) => ({ schedules: state.schedules }),
+      partialize: (state) => ({
+        schedules: state.schedules,
+        analysisResult: state.analysisResult,
+      }),
     },
   ),
 );
