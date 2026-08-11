@@ -9,35 +9,41 @@ logger = logging.getLogger(__name__)
 # Load environment variables from .env
 load_dotenv()
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-engine = None
+APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
+IS_LOCAL_ENV = APP_ENV in {"development", "dev", "local", "test"}
 
-# PostgreSQL 연결 시도
-try:
-    if DATABASE_URL:
-        # Supabase postgresql scheme 호환 처리
-        if DATABASE_URL.startswith("postgres://"):
-            DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-        
-        # 연결 타임아웃을 짧게 주어 확인
-        engine = create_engine(DATABASE_URL, connect_args={"connect_timeout": 3})
-        # 실제 연결 테스트 실행
-        with engine.connect() as conn:
-            pass
-        logger.info("Successfully connected to Supabase PostgreSQL database.")
-    else:
-        raise ValueError("DATABASE_URL is empty or not set.")
-except Exception as e:
-    logger.warning(f"Database connection failed: {e}. Falling back to local SQLite database...")
-    
-    # SQLite fallback 데이터베이스 파일 설정
+if IS_LOCAL_ENV:
+    # 개발/테스트 환경에서는 외부 DB 상태와 무관하게 로컬 SQLite를 사용한다.
     current_dir = os.path.dirname(os.path.abspath(__file__))
     sqlite_path = os.path.abspath(os.path.join(current_dir, "../data/route_check.db"))
     DATABASE_URL = f"sqlite:///{sqlite_path}"
-    
-    # SQLite는 멀티스레드 세션 공유를 위해 check_same_thread=False 필요
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-    logger.info(f"SQLite database initialized at: {sqlite_path}")
+    logger.info("Database environment=%s: using SQLite at %s", APP_ENV, sqlite_path)
+else:
+    # staging/production 환경에서는 Supabase 연결을 필수로 한다.
+    # 운영 중 로컬 SQLite로 조용히 전환되면 서버마다 캐시가 분리되므로 실패시 즉시 중단한다.
+    DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+    if not DATABASE_URL:
+        raise RuntimeError(f"DATABASE_URL is required when APP_ENV={APP_ENV}.")
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    if not DATABASE_URL.startswith(("postgresql://", "postgresql+psycopg2://")):
+        raise RuntimeError(
+            f"PostgreSQL DATABASE_URL is required when APP_ENV={APP_ENV}."
+        )
+
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"connect_timeout": 5},
+        pool_pre_ping=True,
+    )
+    try:
+        with engine.connect():
+            pass
+    except Exception as exc:
+        logger.error("Supabase PostgreSQL connection failed in %s.", APP_ENV)
+        raise RuntimeError("Unable to connect to Supabase PostgreSQL.") from exc
+    logger.info("Database environment=%s: connected to Supabase PostgreSQL", APP_ENV)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -52,4 +58,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
