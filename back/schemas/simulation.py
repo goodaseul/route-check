@@ -16,6 +16,7 @@ class TransitInfoRequest(BaseModel):
     origin: LocationPoint = Field(..., description="출발지 정보")
     destination: LocationPoint = Field(..., description="도착지 정보")
     transport_mode: TransportMode = Field(default="car", description="기본 교통 수단")
+    include_alternatives: bool = Field(default=False, description="자차/대중교통 대안도 함께 조회할지 여부")
 
 class TransportDetail(BaseModel):
     distance_km: float = Field(..., description="이동 거리 (km)")

@@ -28,6 +28,30 @@ export type TransitAlternative = {
   source?: "api" | "cache" | "heuristics" | null;
 };
 
+export type TransitInfoRequest = {
+  origin: {
+    contentid: number;
+    mapx: number;
+    mapy: number;
+  };
+  destination: {
+    contentid: number;
+    mapx: number;
+    mapy: number;
+  };
+  transport_mode: TransportMode;
+  include_alternatives?: boolean;
+};
+
+export type TransitInfoResponse = {
+  origin_id: number;
+  destination_id: number;
+  selected_mode: TransportMode;
+  distance_km: number;
+  duration_minutes: number;
+  alternatives: Record<string, TransitAlternative>;
+};
+
 export type SimulationResponse = {
   overall_score: number;
   status_label: string;

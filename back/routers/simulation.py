@@ -25,9 +25,14 @@ async def get_transit_info(request: TransitInfoRequest, db: Session = Depends(ge
         )
         
     try:
-        # 각 이동 수단별 경로 정보를 캐시 및 API 연동을 통해 수집
+        # 일정 편집 화면은 선택 수단만 조회해 외부 API 쿼터를 절약한다.
+        # 전체 비교는 명시적으로 요청하거나 최종 시뮬레이션 분석에서 수행한다.
         alternatives = {}
-        for mode in ["car", "taxi", "public", "walk", "bicycle"]:
+        modes = [request.transport_mode]
+        if request.include_alternatives:
+            modes = list(dict.fromkeys([request.transport_mode, "car", "public"]))
+
+        for mode in modes:
             route_res = get_route_info_with_cache(
                 db=db,
                 origin_id=origin.contentid, lat1=origin.mapy, lon1=origin.mapx,
@@ -37,11 +42,12 @@ async def get_transit_info(request: TransitInfoRequest, db: Session = Depends(ge
             alternatives[mode] = {
                 "distance_km": route_res["distance_km"],
                 "duration_minutes": route_res["duration_minutes"],
-                "estimated_fare": route_res.get("estimated_fare") if mode in ["taxi", "public"] else None
+                "estimated_fare": route_res.get("estimated_fare") if mode in ["taxi", "public"] else None,
+                "source": route_res.get("source"),
             }
             
         selected_mode = request.transport_mode
-        selected_alt = alternatives.get(selected_mode, alternatives["car"])
+        selected_alt = alternatives[selected_mode]
         
         return TransitInfoResponse(
             origin_id=origin.contentid,
@@ -72,4 +78,3 @@ async def analyze_travel_itinerary(request: SimulationRequest, db: Session = Dep
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"여행 일정을 시뮬레이션 분석하는 중 오류가 발생했습니다: {str(e)}"
         )
-

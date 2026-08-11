@@ -210,8 +210,9 @@ def get_route_info_with_cache(
         estimated_fare = 0
         api_success = True
 
-    # 성공 시 DB 캐시 저장
-    if api_success:
+    # 외부 경로 API에서 받은 결과만 캐시한다. 휴리스틱 추정값을 저장하면
+    # 다음 조회에서 실제 경로 기반 캐시로 오인될 수 있으므로 저장하지 않는다.
+    if api_success and data_source == "api":
         try:
             new_cache = RouteDistanceCache(
                 origin_id=origin_id,
