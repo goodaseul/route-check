@@ -7,6 +7,9 @@ export const formatDate = (date: Date) =>
     )
     .join(".");
 
+export const formatApiDate = (date: Date) =>
+  formatDate(date).replaceAll(".", "-");
+
 export const formatDateRange = (range: DateRange) => {
   if (!range.from) return "";
 

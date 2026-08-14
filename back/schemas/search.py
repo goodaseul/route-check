@@ -15,3 +15,7 @@ class UnifiedSearchResponse(BaseModel):
     total_count: int
     results: List[Dict[str, Any]]
     # results: List[SearchResultItem]
+
+class RecommendedPlacesResponse(BaseModel):
+    total_count: int
+    results: List[Dict[str, Any]]

@@ -66,7 +66,7 @@ export default function SortableScheduleItem({
 
       {!isLast && (
         <div className="flex h-12 items-center pl-13 text-d1 text-semantic-600">
-          {item.travelTime || "대중교통 25분 소요"}
+          {item.travelTime || "이동시간 분석 예정"}
         </div>
       )}
     </li>

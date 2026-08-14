@@ -10,7 +10,12 @@ services:
     volumes:
       - ./back:/app
     environment:
+      - APP_ENV=${APP_ENV:-development}
       - TOUR_API_DECODE_KEY=${TOUR_API_DECODE_KEY}
+      - KAKAO_REST_API_KEY=${KAKAO_REST_API_KEY:-}
+      - TMAP_API_KEY=${TMAP_API_KEY:-}
+      - ODSAY_API_KEY=${ODSAY_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
     networks:

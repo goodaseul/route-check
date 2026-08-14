@@ -5,28 +5,63 @@ import ResultState from "@/components/common/result-state/ResultState";
 import MenuTitle from "@/components/common/menu-title/MenuTitle";
 import Inner from "@/components/layout/Inner";
 import { useRouter } from "next/navigation";
-import type { SuggestionDetail } from "../_data/suggestion-detail-data";
+import { usePlanScheduleStore } from "@/stores/usePlanScheduleStore";
+import type { SuggestionType } from "../_data/suggestion-detail-data";
+import { parseAppliedSuggestions } from "../_data/suggestion-list-data";
+import {
+  getSimulationSuggestionDetail,
+  getSimulationSuggestions,
+} from "../_data/simulation-suggestions";
 import AppliedSuggestionCard from "./AppliedSuggestionCard";
 
 type AppliedSuggestionResultProps = {
-  detail: SuggestionDetail;
+  type: SuggestionType;
+  suggestionId: string | null;
   day: string;
   applied: string;
   date: string | null;
-  hasRemainingSuggestions: boolean;
 };
 
 export default function AppliedSuggestionResult({
-  detail,
+  type,
+  suggestionId,
   day,
   applied,
   date,
-  hasRemainingSuggestions,
 }: AppliedSuggestionResultProps) {
   const router = useRouter();
+  const result = usePlanScheduleStore((state) => state.analysisResult);
+  const suggestions = getSimulationSuggestions(result);
+  const suggestion = suggestions.find(
+    (item) => item.id === suggestionId && item.type === type,
+  );
+  const detail =
+    result && suggestion
+      ? getSimulationSuggestionDetail(suggestion, result)
+      : null;
+  const appliedSuggestions = parseAppliedSuggestions(applied);
+  const dayNumber = Number(day.replace("day", ""));
+  const hasRemainingSuggestions = suggestions.some(
+    (item) =>
+      item.dayNumber === dayNumber && !appliedSuggestions.has(item.type),
+  );
   const params = new URLSearchParams({ day, applied });
   if (date) params.set("date", date);
+  if (suggestionId) params.set("suggestion", suggestionId);
   const query = params.toString();
+
+  if (!detail) {
+    return (
+      <>
+        <MenuTitle>개선 제안</MenuTitle>
+        <Inner>
+          <p className="py-24 text-center text-b3 text-semantic-600">
+            적용된 분석 제안을 불러올 수 없어요.
+          </p>
+        </Inner>
+      </>
+    );
+  }
 
   return (
     <div className="flex min-h-dvh flex-col">

@@ -35,7 +35,9 @@ export default function SuggestionPageClient(
                     <li key={suggestion.id}>
                       <SuggestionCard
                         suggestion={suggestion}
-                        onClick={() => openSuggestion(suggestion.type)}
+                        onClick={() =>
+                          openSuggestion(suggestion.type, suggestion.id)
+                        }
                       />
                     </li>
                   ))}

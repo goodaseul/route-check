@@ -26,3 +26,8 @@ export type SearchResponse = {
   total_count: number;
   results: SearchResult[];
 };
+
+export type RecommendationResponse = {
+  total_count: number;
+  results: SearchResult[];
+};

@@ -7,6 +7,7 @@ type SuggestionDetailParams = {
   date: string | null;
   day: string | null;
   applied: string | null;
+  suggestionId: string | null;
 };
 
 export function useSuggestionDetailNavigation(
@@ -44,10 +45,12 @@ function createSuggestionParams({
   date,
   day,
   applied,
+  suggestionId,
 }: SuggestionDetailParams) {
   const params = new URLSearchParams();
   if (date) params.set("date", date);
   if (day) params.set("day", day);
   if (applied) params.set("applied", applied);
+  if (suggestionId) params.set("suggestion", suggestionId);
   return params;
 }

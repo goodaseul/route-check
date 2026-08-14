@@ -24,9 +24,7 @@ def fetch_api_data(endpoint: str, params: dict = None) -> tuple[pd.DataFrame, in
         default_params.update(params)
         
     try:
-        response = requests.get(url, params=default_params)
-        print(f"[DEBUG] 요청 URL: {response.url}")
-        print(f"[DEBUG] 서버 응답 원본: {response.text[:200]}")
+        response = requests.get(url, params=default_params, timeout=10)
 
         if response.status_code != 200:
             return pd.DataFrame(), 0
@@ -85,3 +83,37 @@ def get_unified_search(keyword: str, num_of_rows: int = 100, page_no: int = 1) -
             unified_results.append(row_dict)
                 
     return unified_results, total_count
+
+
+def get_recommended_places(
+    num_of_rows: int = 4,
+    page_no: int = 1,
+    area_code: str | None = None,
+    sigungu_code: str | None = None,
+    content_type_id: str | None = None,
+) -> tuple[list, int]:
+    """관광공사 지역 기반 목록을 인기순으로 조회해 추천 장소를 반환한다."""
+    params = {
+        "numOfRows": num_of_rows,
+        "pageNo": page_no,
+        "arrange": "Q",
+    }
+    if area_code:
+        params["areaCode"] = area_code
+    if sigungu_code:
+        params["sigunguCode"] = sigungu_code
+    if content_type_id:
+        params["contentTypeId"] = content_type_id
+
+    df, total_count = fetch_api_data(endpoint="areaBasedList2", params=params)
+    if df.empty:
+        return [], total_count
+
+    results = []
+    for _, row in df.iterrows():
+        item = {
+            key: (None if pd.isna(value) else value)
+            for key, value in row.to_dict().items()
+        }
+        results.append(item)
+    return results, total_count
