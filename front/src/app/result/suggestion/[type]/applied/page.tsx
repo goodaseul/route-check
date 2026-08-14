@@ -2,11 +2,9 @@ import { notFound } from "next/navigation";
 import AppliedSuggestionResult from "../../_components/AppliedSuggestionResult";
 import {
   isSuggestionType,
-  SUGGESTION_DETAIL_DATA,
 } from "../../_data/suggestion-detail-data";
 import {
   parseAppliedSuggestions,
-  SUGGESTIONS,
 } from "../../_data/suggestion-list-data";
 
 type AppliedSuggestionPageProps = {
@@ -15,6 +13,7 @@ type AppliedSuggestionPageProps = {
     day?: string | string[];
     applied?: string | string[];
     date?: string | string[];
+    suggestion?: string | string[];
   }>;
 };
 
@@ -34,17 +33,15 @@ export default async function AppliedSuggestionPage({
   const appliedSuggestions = parseAppliedSuggestions(appliedValue);
   appliedSuggestions.add(type);
   const applied = Array.from(appliedSuggestions).join(",");
-  const hasRemainingSuggestions = (SUGGESTIONS[day] ?? []).some(
-    (suggestion) => !appliedSuggestions.has(suggestion.type),
-  );
-
   return (
     <AppliedSuggestionResult
-      detail={SUGGESTION_DETAIL_DATA[type]}
+      type={type}
+      suggestionId={
+        typeof query.suggestion === "string" ? query.suggestion : null
+      }
       day={day}
       applied={applied}
       date={typeof query.date === "string" ? query.date : null}
-      hasRemainingSuggestions={hasRemainingSuggestions}
     />
   );
 }

@@ -7,8 +7,9 @@ import {
 } from "@/components/common/date-input/date-format";
 import {
   parseAppliedSuggestions,
-  SUGGESTIONS,
 } from "../_data/suggestion-list-data";
+import { usePlanScheduleStore } from "@/stores/usePlanScheduleStore";
+import { getSimulationSuggestions } from "../_data/simulation-suggestions";
 
 type SuggestionListParams = {
   date: string | null;
@@ -22,10 +23,12 @@ export function useSuggestionList({
   applied,
 }: SuggestionListParams) {
   const router = useRouter();
+  const result = usePlanScheduleStore((state) => state.analysisResult);
+  const apiSuggestions = getSimulationSuggestions(result);
   const dateRange = parseDateRange(date);
   const totalDays = dateRange
     ? getInclusiveDayCount(dateRange)
-    : Object.keys(SUGGESTIONS).length;
+    : Math.max(result?.timeline.length ?? 0, 1);
   const dayTabs = Array.from({ length: totalDays }, (_, index) => ({
     label: `Day ${index + 1}`,
     value: `day${index + 1}`,
@@ -34,8 +37,11 @@ export function useSuggestionList({
     ? day!
     : "day1";
   const appliedSuggestions = parseAppliedSuggestions(applied);
-  const suggestions = (SUGGESTIONS[selectedDay] ?? []).filter(
-    (suggestion) => !appliedSuggestions.has(suggestion.type),
+  const selectedDayNumber = Number(selectedDay.replace("day", ""));
+  const suggestions = apiSuggestions.filter(
+    (suggestion) =>
+      suggestion.dayNumber === selectedDayNumber &&
+      !appliedSuggestions.has(suggestion.type),
   );
 
   const changeDay = (day: string) => {
@@ -46,9 +52,10 @@ export function useSuggestionList({
     });
   };
 
-  const openSuggestion = (type: string) => {
+  const openSuggestion = (type: string, suggestionId: string) => {
     const params = createSuggestionParams({ date, day, applied });
     params.set("day", selectedDay);
+    params.set("suggestion", suggestionId);
     router.push(`/result/suggestion/${type}?${params.toString()}`);
   };
 

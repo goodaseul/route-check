@@ -95,5 +95,14 @@ export type SimulationResponse = {
   total_score?: number | null;
   status_message?: string | null;
   analysis_summary?: Record<string, string> | null;
-  suggestions?: Array<Record<string, unknown>> | null;
+  suggestions?: SimulationSuggestion[] | null;
+};
+
+export type SimulationSuggestion = {
+  type?: string | null;
+  title?: string | null;
+  description?: string | null;
+  day_number?: number | null;
+  contentid?: number | null;
+  applied_route?: string[] | null;
 };

@@ -3,26 +3,54 @@
 import BottomActionBar from "@/components/common/buttons/BottomActionBar";
 import MenuTitle from "@/components/common/menu-title/MenuTitle";
 import Inner from "@/components/layout/Inner";
-import type { SuggestionDetail as SuggestionDetailData } from "../_data/suggestion-detail-data";
+import { usePlanScheduleStore } from "@/stores/usePlanScheduleStore";
+import type { SuggestionType } from "../_data/suggestion-detail-data";
+import {
+  getSimulationSuggestionDetail,
+  getSimulationSuggestions,
+} from "../_data/simulation-suggestions";
 import { useSuggestionDetailNavigation } from "../_hooks/useSuggestionDetailNavigation";
 import SuggestionChangeCard from "./SuggestionChangeCard";
 import SuggestionEffectCard from "./SuggestionEffectCard";
 
 type SuggestionDetailProps = {
-  detail: SuggestionDetailData;
+  type: SuggestionType;
+  suggestionId: string | null;
   date: string | null;
   day: string | null;
   applied: string | null;
 };
 
 export default function SuggestionDetail({
-  detail,
+  type,
+  suggestionId,
   date,
   day,
   applied,
 }: SuggestionDetailProps) {
+  const result = usePlanScheduleStore((state) => state.analysisResult);
+  const suggestion = getSimulationSuggestions(result).find(
+    (item) => item.id === suggestionId && item.type === type,
+  );
+  const detail =
+    result && suggestion
+      ? getSimulationSuggestionDetail(suggestion, result)
+      : null;
   const { viewSuggestionList, applySuggestion } =
-    useSuggestionDetailNavigation(detail.type, { date, day, applied });
+    useSuggestionDetailNavigation(type, { date, day, applied, suggestionId });
+
+  if (!detail) {
+    return (
+      <>
+        <MenuTitle>개선 제안</MenuTitle>
+        <Inner>
+          <p className="py-24 text-center text-b3 text-semantic-600">
+            분석 제안을 불러올 수 없어요. 일정을 다시 분석해 주세요.
+          </p>
+        </Inner>
+      </>
+    );
+  }
 
   return (
     <div className="flex min-h-dvh flex-col">

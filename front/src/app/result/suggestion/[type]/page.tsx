@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import SuggestionDetail from "../_components/SuggestionDetail";
 import {
   isSuggestionType,
-  SUGGESTION_DETAIL_DATA,
   SUGGESTION_TYPES,
 } from "../_data/suggestion-detail-data";
 
@@ -12,6 +11,7 @@ type SuggestionDetailPageProps = {
     date?: string | string[];
     day?: string | string[];
     applied?: string | string[];
+    suggestion?: string | string[];
   }>;
 };
 
@@ -29,7 +29,8 @@ export default async function SuggestionDetailPage({
 
   return (
     <SuggestionDetail
-      detail={SUGGESTION_DETAIL_DATA[type]}
+      type={type}
+      suggestionId={getSingleParam(query.suggestion)}
       date={getSingleParam(query.date)}
       day={getSingleParam(query.day)}
       applied={getSingleParam(query.applied)}
