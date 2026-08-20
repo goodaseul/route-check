@@ -31,13 +31,26 @@ export default function AppliedSuggestionResult({
 }: AppliedSuggestionResultProps) {
   const router = useRouter();
   const result = usePlanScheduleStore((state) => state.analysisResult);
+  const previousResult = usePlanScheduleStore(
+    (state) => state.previousAnalysisResult,
+  );
+  const comparison = usePlanScheduleStore(
+    (state) => state.analysisComparison,
+  );
+  const lastAppliedSuggestionId = usePlanScheduleStore(
+    (state) => state.lastAppliedSuggestionId,
+  );
   const suggestions = getSimulationSuggestions(result);
-  const suggestion = suggestions.find(
+  const sourceResult =
+    lastAppliedSuggestionId === suggestionId && previousResult
+      ? previousResult
+      : result;
+  const suggestion = getSimulationSuggestions(sourceResult).find(
     (item) => item.id === suggestionId && item.type === type,
   );
   const detail =
-    result && suggestion
-      ? getSimulationSuggestionDetail(suggestion, result)
+    sourceResult && suggestion
+      ? getSimulationSuggestionDetail(suggestion, sourceResult)
       : null;
   const appliedSuggestions = parseAppliedSuggestions(applied);
   const dayNumber = Number(day.replace("day", ""));
@@ -80,6 +93,32 @@ export default function AppliedSuggestionResult({
             <h2 className="text-b1 font-bold text-semantic-800">적용된 제안</h2>
             <AppliedSuggestionCard detail={detail} />
           </section>
+
+          {comparison && (
+            <section className="mt-8">
+              <h2 className="text-b1 font-bold text-semantic-800">
+                변경 전후 비교
+              </h2>
+              <dl className="mt-4 rounded-card border border-semantic-300 bg-semantic-100 px-6 py-3 shadow-card">
+                <ComparisonRow
+                  label="종합 점수"
+                  before={`${comparison.previous_score}점`}
+                  after={`${comparison.updated_score}점`}
+                />
+                <ComparisonRow
+                  label="이동 거리"
+                  before={`${comparison.previous_distance_km}km`}
+                  after={`${comparison.updated_distance_km}km`}
+                />
+                <ComparisonRow
+                  label="이동 시간"
+                  before={`${comparison.previous_transit_minutes}분`}
+                  after={`${comparison.updated_transit_minutes}분`}
+                  isLast
+                />
+              </dl>
+            </section>
+          )}
         </main>
       </Inner>
 
@@ -97,6 +136,33 @@ export default function AppliedSuggestionResult({
           onClick: () => router.push(`/result/summary?${query}`),
         }}
       />
+    </div>
+  );
+}
+
+function ComparisonRow({
+  label,
+  before,
+  after,
+  isLast = false,
+}: {
+  label: string;
+  before: string;
+  after: string;
+  isLast?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between py-3 ${
+        isLast ? "" : "border-b border-semantic-300"
+      }`}
+    >
+      <dt className="text-d1 font-medium text-semantic-600">{label}</dt>
+      <dd className="text-b3 font-semibold text-semantic-800">
+        <span className="text-semantic-500">{before}</span>
+        <span className="px-2">→</span>
+        <span className="text-blue-500">{after}</span>
+      </dd>
     </div>
   );
 }

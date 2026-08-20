@@ -3,10 +3,11 @@ from sqlalchemy.orm import Session
 from db.database import get_db
 from schemas.simulation import (
     TransitInfoRequest, TransitInfoResponse,
-    SimulationRequest, SimulationResponse
+    SimulationRequest, SimulationResponse,
+    ApplyReorderSuggestionRequest, ApplyReorderSuggestionResponse,
 )
 from services.route_service import get_route_info_with_cache
-from services.simulation_service import analyze_itinerary
+from services.simulation_service import analyze_itinerary, apply_reorder_suggestion
 
 router = APIRouter(prefix="/api", tags=["Simulation"])
 
@@ -78,3 +79,27 @@ async def analyze_travel_itinerary(request: SimulationRequest, db: Session = Dep
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"여행 일정을 시뮬레이션 분석하는 중 오류가 발생했습니다: {str(e)}"
         )
+
+
+@router.post(
+    "/simulation/apply-reorder",
+    response_model=ApplyReorderSuggestionResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def apply_reorder(
+    request: ApplyReorderSuggestionRequest,
+    db: Session = Depends(get_db),
+):
+    """검증된 장소 순서를 적용하고 변경 전·후 일정을 다시 분석한다."""
+    try:
+        return apply_reorder_suggestion(request.model_dump(), db)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"순서 변경 제안을 적용하는 중 오류가 발생했습니다: {str(exc)}",
+        ) from exc

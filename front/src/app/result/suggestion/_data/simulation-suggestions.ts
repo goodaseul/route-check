@@ -35,7 +35,7 @@ export function getSimulationSuggestions(
     const type = mapSuggestionType(`${raw.type ?? ""} ${raw.title ?? ""}`);
 
     return {
-      id: `suggestion-${apiIndex}`,
+      id: raw.suggestion_id || `suggestion-${apiIndex}`,
       apiIndex,
       dayNumber: raw.day_number ?? 1,
       type,

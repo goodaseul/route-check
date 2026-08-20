@@ -99,10 +99,43 @@ export type SimulationResponse = {
 };
 
 export type SimulationSuggestion = {
+  suggestion_id?: string | null;
   type?: string | null;
   title?: string | null;
   description?: string | null;
   day_number?: number | null;
   contentid?: number | null;
   applied_route?: string[] | null;
+  operation?: {
+    type: "REORDER";
+    day_number: number;
+    ordered_contentids: number[];
+  } | null;
+};
+
+export type SimulationComparison = {
+  previous_score: number;
+  updated_score: number;
+  score_delta: number;
+  previous_distance_km: number;
+  updated_distance_km: number;
+  distance_saved_km: number;
+  previous_transit_minutes: number;
+  updated_transit_minutes: number;
+  transit_minutes_saved: number;
+};
+
+export type ApplyReorderSuggestionRequest = {
+  itinerary: SimulationRequest;
+  suggestion_id: string;
+  day_number: number;
+  ordered_contentids: number[];
+};
+
+export type ApplyReorderSuggestionResponse = {
+  applied_suggestion_id: string;
+  updated_itinerary: SimulationRequest;
+  previous_result: SimulationResponse;
+  updated_result: SimulationResponse;
+  comparison: SimulationComparison;
 };

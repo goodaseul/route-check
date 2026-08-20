@@ -34,8 +34,8 @@ export function useSchedulePage(
   const reorderScheduleItems = usePlanScheduleStore(
     (state) => state.reorderScheduleItems,
   );
-  const setAnalysisResult = usePlanScheduleStore(
-    (state) => state.setAnalysisResult,
+  const setAnalysis = usePlanScheduleStore(
+    (state) => state.setAnalysis,
   );
   const dateRange = parseDateRange(date);
   const totalDays = dateRange ? getInclusiveDayCount(dateRange) : 0;
@@ -136,7 +136,7 @@ export function useSchedulePage(
     setIsAnalyzing(true);
     try {
       const result = await analyzeSimulation(request);
-      setAnalysisResult(result);
+      setAnalysis(request, result);
       const params = new URLSearchParams();
       if (date) params.set("date", date);
       params.set("transport", transport);

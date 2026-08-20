@@ -94,5 +94,76 @@ class SimulationScoreAuthorityTest(unittest.TestCase):
         self.assertNotIn("A", json.dumps(result["suggestions"], ensure_ascii=False))
 
 
+class ApplyReorderSuggestionTest(unittest.TestCase):
+    def setUp(self):
+        self.itinerary = {
+            "start_date": "2026-08-22",
+            "end_date": "2026-08-22",
+            "transport_mode": "car",
+            "days": [
+                {
+                    "day_number": 1,
+                    "date": "2026-08-22",
+                    "places": [
+                        {"sequence": 1, "contentid": 10, "title": "A"},
+                        {"sequence": 2, "contentid": 20, "title": "B"},
+                        {"sequence": 3, "contentid": 30, "title": "C"},
+                    ],
+                }
+            ],
+        }
+
+    def test_reorders_places_and_returns_comparison(self):
+        previous = {
+            "total_score": 80,
+            "summary": {
+                "total_distance_km": 12.0,
+                "total_transit_time_minutes": 50,
+            },
+        }
+        updated = {
+            "total_score": 90,
+            "summary": {
+                "total_distance_km": 8.5,
+                "total_transit_time_minutes": 35,
+            },
+        }
+        payload = {
+            "itinerary": self.itinerary,
+            "suggestion_id": "reorder-day-1-1-3-2",
+            "day_number": 1,
+            "ordered_contentids": [10, 30, 20],
+        }
+
+        with patch.object(
+            simulation_service,
+            "analyze_itinerary",
+            side_effect=[previous, updated],
+        ) as analyze:
+            result = simulation_service.apply_reorder_suggestion(
+                payload, MagicMock()
+            )
+
+        places = result["updated_itinerary"]["days"][0]["places"]
+        self.assertEqual([place["contentid"] for place in places], [10, 30, 20])
+        self.assertEqual([place["sequence"] for place in places], [1, 2, 3])
+        self.assertEqual(result["comparison"]["score_delta"], 10)
+        self.assertEqual(result["comparison"]["distance_saved_km"], 3.5)
+        self.assertEqual(result["comparison"]["transit_minutes_saved"], 15)
+        self.assertEqual(analyze.call_count, 2)
+        self.assertTrue(all(call.kwargs["include_llm"] is False for call in analyze.call_args_list))
+
+    def test_rejects_missing_or_duplicate_places(self):
+        payload = {
+            "itinerary": self.itinerary,
+            "suggestion_id": "invalid",
+            "day_number": 1,
+            "ordered_contentids": [10, 20, 20],
+        }
+
+        with self.assertRaisesRegex(ValueError, "동일한 장소"):
+            simulation_service.apply_reorder_suggestion(payload, MagicMock())
+
+
 if __name__ == "__main__":
     unittest.main()

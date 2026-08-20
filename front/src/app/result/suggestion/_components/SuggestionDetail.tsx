@@ -3,7 +3,10 @@
 import BottomActionBar from "@/components/common/buttons/BottomActionBar";
 import MenuTitle from "@/components/common/menu-title/MenuTitle";
 import Inner from "@/components/layout/Inner";
+import { applyReorderSuggestion } from "@/api/simulation";
+import { showToast } from "@/lib/utils/toast";
 import { usePlanScheduleStore } from "@/stores/usePlanScheduleStore";
+import { useState } from "react";
 import type { SuggestionType } from "../_data/suggestion-detail-data";
 import {
   getSimulationSuggestionDetail,
@@ -29,6 +32,13 @@ export default function SuggestionDetail({
   applied,
 }: SuggestionDetailProps) {
   const result = usePlanScheduleStore((state) => state.analysisResult);
+  const analysisRequest = usePlanScheduleStore(
+    (state) => state.analysisRequest,
+  );
+  const applyReorderResult = usePlanScheduleStore(
+    (state) => state.applyReorderResult,
+  );
+  const [isApplying, setIsApplying] = useState(false);
   const suggestion = getSimulationSuggestions(result).find(
     (item) => item.id === suggestionId && item.type === type,
   );
@@ -38,6 +48,45 @@ export default function SuggestionDetail({
       : null;
   const { viewSuggestionList, applySuggestion } =
     useSuggestionDetailNavigation(type, { date, day, applied, suggestionId });
+
+  const handleApplySuggestion = async () => {
+    const operation = suggestion?.raw.operation;
+    if (
+      isApplying ||
+      type !== "order" ||
+      operation?.type !== "REORDER" ||
+      !analysisRequest ||
+      !result ||
+      !suggestion
+    ) {
+      showToast("현재는 장소 순서 변경 제안만 적용할 수 있어요.");
+      return;
+    }
+
+    setIsApplying(true);
+    try {
+      const response = await applyReorderSuggestion({
+        itinerary: analysisRequest,
+        suggestion_id: suggestion.id,
+        day_number: operation.day_number,
+        ordered_contentids: operation.ordered_contentids,
+      });
+      applyReorderResult({
+        day: `day${operation.day_number}`,
+        orderedContentIds: operation.ordered_contentids,
+        request: response.updated_itinerary,
+        previousResult: response.previous_result,
+        updatedResult: response.updated_result,
+        comparison: response.comparison,
+        suggestionId: response.applied_suggestion_id,
+      });
+      applySuggestion();
+    } catch {
+      showToast("순서 변경 제안을 적용하지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setIsApplying(false);
+    }
+  };
 
   if (!detail) {
     return (
@@ -80,8 +129,8 @@ export default function SuggestionDetail({
           onClick: viewSuggestionList,
         }}
         primaryAction={{
-          label: "이 제안 적용하기",
-          onClick: applySuggestion,
+          label: isApplying ? "제안 적용 중..." : "이 제안 적용하기",
+          onClick: handleApplySuggestion,
         }}
       />
     </div>

@@ -4,6 +4,8 @@ import type {
   SimulationResponse,
   TransitInfoRequest,
   TransitInfoResponse,
+  ApplyReorderSuggestionRequest,
+  ApplyReorderSuggestionResponse,
 } from "./types/simulation";
 
 export function analyzeSimulation(body: SimulationRequest) {
@@ -18,4 +20,14 @@ export function fetchTransitInfo(body: TransitInfoRequest) {
     method: "POST",
     body,
   });
+}
+
+export function applyReorderSuggestion(body: ApplyReorderSuggestionRequest) {
+  return fetcher<ApplyReorderSuggestionResponse>(
+    "/api/simulation/apply-reorder",
+    {
+      method: "POST",
+      body,
+    },
+  );
 }

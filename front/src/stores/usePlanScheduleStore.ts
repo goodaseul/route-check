@@ -2,6 +2,11 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type {
+  SimulationComparison,
+  SimulationRequest,
+  SimulationResponse,
+} from "@/api/types/simulation";
 
 export type ScheduleItem = {
   id: string;
@@ -17,6 +22,10 @@ export type ScheduleItem = {
 type PlanScheduleState = {
   schedules: Record<string, ScheduleItem[]>;
   analysisResult: import("@/api/types/simulation").SimulationResponse | null;
+  analysisRequest: SimulationRequest | null;
+  previousAnalysisResult: SimulationResponse | null;
+  analysisComparison: SimulationComparison | null;
+  lastAppliedSuggestionId: string | null;
   addScheduleItems: (day: string, items: ScheduleItem[]) => void;
   removeScheduleItem: (day: string, id: string) => void;
   reorderScheduleItems: (
@@ -28,6 +37,16 @@ type PlanScheduleState = {
   setAnalysisResult: (
     result: import("@/api/types/simulation").SimulationResponse | null,
   ) => void;
+  setAnalysis: (request: SimulationRequest, result: SimulationResponse) => void;
+  applyReorderResult: (params: {
+    day: string;
+    orderedContentIds: number[];
+    request: SimulationRequest;
+    previousResult: SimulationResponse;
+    updatedResult: SimulationResponse;
+    comparison: SimulationComparison;
+    suggestionId: string;
+  }) => void;
 };
 
 export const usePlanScheduleStore = create<PlanScheduleState>()(
@@ -35,6 +54,10 @@ export const usePlanScheduleStore = create<PlanScheduleState>()(
     (set) => ({
       schedules: {},
       analysisResult: null,
+      analysisRequest: null,
+      previousAnalysisResult: null,
+      analysisComparison: null,
+      lastAppliedSuggestionId: null,
 
       addScheduleItems: (day, items) => {
         set((state) => {
@@ -78,8 +101,52 @@ export const usePlanScheduleStore = create<PlanScheduleState>()(
         });
       },
 
-      resetSchedules: () => set({ schedules: {}, analysisResult: null }),
+      resetSchedules: () =>
+        set({
+          schedules: {},
+          analysisResult: null,
+          analysisRequest: null,
+          previousAnalysisResult: null,
+          analysisComparison: null,
+          lastAppliedSuggestionId: null,
+        }),
       setAnalysisResult: (analysisResult) => set({ analysisResult }),
+      setAnalysis: (analysisRequest, analysisResult) =>
+        set({
+          analysisRequest,
+          analysisResult,
+          previousAnalysisResult: null,
+          analysisComparison: null,
+          lastAppliedSuggestionId: null,
+        }),
+      applyReorderResult: ({
+        day,
+        orderedContentIds,
+        request,
+        previousResult,
+        updatedResult,
+        comparison,
+        suggestionId,
+      }) =>
+        set((state) => {
+          const items = state.schedules[day] ?? [];
+          const itemByContentId = new Map(
+            items.map((item) => [item.contentId, item]),
+          );
+          const reordered = orderedContentIds.flatMap((contentId) => {
+            const item = itemByContentId.get(contentId);
+            return item ? [item] : [];
+          });
+
+          return {
+            schedules: { ...state.schedules, [day]: reordered },
+            analysisRequest: request,
+            previousAnalysisResult: previousResult,
+            analysisResult: updatedResult,
+            analysisComparison: comparison,
+            lastAppliedSuggestionId: suggestionId,
+          };
+        }),
     }),
     {
       name: "route-check-plan-schedules",
@@ -88,6 +155,10 @@ export const usePlanScheduleStore = create<PlanScheduleState>()(
       partialize: (state) => ({
         schedules: state.schedules,
         analysisResult: state.analysisResult,
+        analysisRequest: state.analysisRequest,
+        previousAnalysisResult: state.previousAnalysisResult,
+        analysisComparison: state.analysisComparison,
+        lastAppliedSuggestionId: state.lastAppliedSuggestionId,
       }),
     },
   ),

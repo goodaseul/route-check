@@ -3,6 +3,8 @@ import re
 import json
 import requests
 import pandas as pd
+from collections import Counter
+from copy import deepcopy
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
@@ -580,7 +582,7 @@ status_description 필드 하나만 반환하세요.
     return prompt
 
 
-def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
+def analyze_itinerary(itinerary_data: dict, db: Session, include_llm: bool = True) -> dict:
     """
     다중 일자 여행 계획 전체를 시뮬레이션 분석하여 종합 피드백 점수 및 경고 메시지를 계산.
     """
@@ -745,7 +747,7 @@ def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
         "total_duration_minutes": total_duration_minutes
     }
 
-    if OPENAI_API_KEY:
+    if OPENAI_API_KEY and include_llm:
         try:
             from openai import OpenAI
             client = OpenAI(api_key=OPENAI_API_KEY)
@@ -799,11 +801,17 @@ def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
             )
             applied_route_names = [p.get("title") or "알 수 없는 장소" for p in sorted_places]
             deterministic_suggestions.append({
+                "suggestion_id": f"reorder-day-{day_num}-{'-'.join(map(str, suggested_order))}",
                 "type": "순서 변경",
                 "title": "방문 순서 변경 제안",
                 "description": ip["message"],
                 "day_number": day_num,
-                "applied_route": applied_route_names
+                "applied_route": applied_route_names,
+                "operation": {
+                    "type": "REORDER",
+                    "day_number": day_num,
+                    "ordered_contentids": [p.get("contentid") for p in sorted_places],
+                },
             })
 
     # AI 사용 여부와 무관하게 핵심 진단은 프론트 제안 목록에 노출한다.
@@ -855,4 +863,66 @@ def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
             "transport_mode": default_transport_mode
         },
         "suggestions": deterministic_suggestions
+    }
+
+
+def apply_reorder_suggestion(payload: dict, db: Session) -> dict:
+    """장소 누락·중복 없이 같은 날짜 안에서만 순서를 변경하고 재분석한다."""
+    itinerary = deepcopy(payload.get("itinerary") or {})
+    day_number = int(payload.get("day_number") or 0)
+    ordered_contentids = payload.get("ordered_contentids") or []
+    suggestion_id = str(payload.get("suggestion_id") or "").strip()
+
+    target_day = next(
+        (day for day in itinerary.get("days", []) if day.get("day_number") == day_number),
+        None,
+    )
+    if target_day is None:
+        raise ValueError("순서를 변경할 여행 일차를 찾을 수 없습니다.")
+
+    places = target_day.get("places") or []
+    current_contentids = [place.get("contentid") for place in places]
+    if Counter(current_contentids) != Counter(ordered_contentids):
+        raise ValueError("순서 변경에는 기존 일정과 동일한 장소가 한 번씩 포함되어야 합니다.")
+    if current_contentids == ordered_contentids:
+        raise ValueError("이미 적용된 방문 순서입니다.")
+
+    places_by_contentid = {place.get("contentid"): place for place in places}
+    reordered_places = []
+    for sequence, contentid in enumerate(ordered_contentids, start=1):
+        place = deepcopy(places_by_contentid[contentid])
+        place["sequence"] = sequence
+        reordered_places.append(place)
+    target_day["places"] = reordered_places
+
+    original_itinerary = deepcopy(payload.get("itinerary") or {})
+    previous_result = analyze_itinerary(original_itinerary, db, include_llm=False)
+    updated_result = analyze_itinerary(itinerary, db, include_llm=False)
+
+    previous_summary = previous_result["summary"]
+    updated_summary = updated_result["summary"]
+    previous_score = previous_result["total_score"]
+    updated_score = updated_result["total_score"]
+
+    return {
+        "applied_suggestion_id": suggestion_id,
+        "updated_itinerary": itinerary,
+        "previous_result": previous_result,
+        "updated_result": updated_result,
+        "comparison": {
+            "previous_score": previous_score,
+            "updated_score": updated_score,
+            "score_delta": updated_score - previous_score,
+            "previous_distance_km": previous_summary["total_distance_km"],
+            "updated_distance_km": updated_summary["total_distance_km"],
+            "distance_saved_km": round(
+                previous_summary["total_distance_km"] - updated_summary["total_distance_km"], 1
+            ),
+            "previous_transit_minutes": previous_summary["total_transit_time_minutes"],
+            "updated_transit_minutes": updated_summary["total_transit_time_minutes"],
+            "transit_minutes_saved": (
+                previous_summary["total_transit_time_minutes"]
+                - updated_summary["total_transit_time_minutes"]
+            ),
+        },
     }

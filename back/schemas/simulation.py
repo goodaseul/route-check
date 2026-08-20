@@ -122,3 +122,30 @@ class SimulationResponse(BaseModel):
     status_message: Optional[str] = Field(None, description="AI 요약 상태 메시지")
     analysis_summary: Optional[Dict[str, str]] = Field(None, description="AI가 가공한 누적 거리 및 이동 시간 요약")
     suggestions: Optional[List[Dict[str, Any]]] = Field(None, description="AI 개선 제안 목록 (Applied Route 포함)")
+
+
+class ApplyReorderSuggestionRequest(BaseModel):
+    itinerary: SimulationRequest
+    suggestion_id: str = Field(..., min_length=1)
+    day_number: int = Field(..., ge=1)
+    ordered_contentids: List[int] = Field(..., min_length=2)
+
+
+class SimulationComparison(BaseModel):
+    previous_score: int
+    updated_score: int
+    score_delta: int
+    previous_distance_km: float
+    updated_distance_km: float
+    distance_saved_km: float
+    previous_transit_minutes: int
+    updated_transit_minutes: int
+    transit_minutes_saved: int
+
+
+class ApplyReorderSuggestionResponse(BaseModel):
+    applied_suggestion_id: str
+    updated_itinerary: SimulationRequest
+    previous_result: SimulationResponse
+    updated_result: SimulationResponse
+    comparison: SimulationComparison
