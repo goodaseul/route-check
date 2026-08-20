@@ -514,7 +514,10 @@ def suggest_optimized_order(places: list) -> list:
 
 def build_llm_prompt(itinerary_data: dict, timeline: list, warnings: list, summary: dict, start_date: str, end_date: str) -> str:
     """
-    OpenAI LLM 전달을 위한 상세 스케줄 Context 프롬프트 빌더.
+    결정론적 분석 결과를 사용자 친화적인 한 문단으로 설명하기 위한 프롬프트.
+
+    점수, 시간, 거리, 경고, 추천 및 방문 순서는 백엔드 규칙 엔진이
+    확정한다. LLM은 이 값을 생성하거나 변경하지 않고 설명 문장만 만든다.
     """
     schedule_text = ""
     for day in timeline:
@@ -549,8 +552,15 @@ def build_llm_prompt(itinerary_data: dict, timeline: list, warnings: list, summa
     else:
         warnings_text = "\n[특이사항 및 경고]\n- 특이사항 없음\n"
 
-    prompt = f"""당신의 역할은 사용자의 여행 일정을 전문적으로 진단하고 피드백을 주는 AI 여행 플래너입니다.
-제공된 여행 일정과 지도(Map) API 계산 결과를 참고하여, 이 일정이 동선상 효율적인지, 혼잡한 시간대를 적절히 피했는지 종합 분석해주세요.
+    prompt = f"""당신은 여행 일정 분석 결과를 자연스러운 한국어로 설명하는 편집자입니다.
+아래 내용은 백엔드 규칙 엔진과 외부 API가 이미 계산하고 확정한 사실입니다.
+
+중요한 제한사항:
+- 점수, 시간, 거리, 요금, 장소명, 방문 순서 및 경고를 새로 만들거나 수정하지 마세요.
+- 새로운 추천이나 적용 경로를 생성하지 마세요.
+- 입력에 없는 사실을 추측하지 마세요.
+- 숫자를 새로 계산하지 마세요.
+- 일정의 전반적인 상태를 설명하는 1~2문장의 한국어 설명만 작성하세요.
 
 [여행 기본 조건]
 - 시작일: {start_date} ~ 종료일: {end_date}
@@ -564,22 +574,8 @@ def build_llm_prompt(itinerary_data: dict, timeline: list, warnings: list, summa
 - 총 이동거리: {summary.get('total_distance_km')}km
 - 총 이동시간: {summary.get('total_transit_time_minutes')}분
 
-[출력 형식 및 가이드]
-반드시 다음 JSON 포맷으로 답변을 생성해주세요. 다른 잡설이나 설명 텍스트 없이 오직 JSON만 반환해야 합니다.
-
-{{
-  "total_score": 75, // 0 ~ 100점 사이의 종합 점수 (동선의 효율성, 혼잡성 중첩 등을 감안해 합리적으로 배점)
-  "status_message": "이동이 많은 구간이 있어요.", // 일정을 요약하는 짧은 한 줄 상태 메시지 (30자 내외)
-  "status_description": "전체적으로 동선은 무난하지만...", // 상세 분석 코멘트
-  "suggestions": [
-    {{
-      "type": "순서 변경", // '순서 변경', '시간 조정', '관광지 대체' 등
-      "title": "방문 순서 변경 제안",
-      "description": "B 관광지가 현재 가장 붐비는 시간대입니다. C 관광지를 먼저 방문하고 B를 나중에 가면 이동 시간을 15분 단축하고 혼잡도도 피할 수 있습니다.",
-      "applied_route": ["A", "C", "B"] // 제안이 적용될 경우의 권장되는 장소 방문 순서 (장소명(title) 리스트)
-    }}
-  ]
-}}
+[출력]
+status_description 필드 하나만 반환하세요.
 """
     return prompt
 
@@ -739,9 +735,9 @@ def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
                         "suggested_order": suggested_order
                     })
 
-    # --- AI(LLM) 기반의 분석 리포트 및 개선 피드백 획득 ---
+    # --- 결정론적 분석 결과 조립 ---
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    ai_result = None
+    llm_status_description = None
     summary_dict = {
         "total_distance_km": round(total_distance, 1),
         "total_transit_time_minutes": int(total_transit_time),
@@ -764,37 +760,51 @@ def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
             res = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.2,
-                response_format={"type": "json_object"}
+                temperature=0,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "itinerary_narrative",
+                        "strict": True,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "status_description": {"type": "string"}
+                            },
+                            "required": ["status_description"],
+                            "additionalProperties": False
+                        }
+                    }
+                }
             )
-            ai_result = json.loads(res.choices[0].message.content)
+            llm_result = json.loads(res.choices[0].message.content)
+            candidate = llm_result.get("status_description")
+            if isinstance(candidate, str) and candidate.strip():
+                llm_status_description = candidate.strip()
         except Exception as e:
             print(f"[OpenAI API Error] Failed to call OpenAI: {e}")
 
-    # fallback 또는 API 실패 시 로컬 룰 기반 가공
-    if not ai_result:
-        ai_result = {
-            "total_score": final_score,
-            "status_message": status_label,
-            "status_description": status_description,
-            "suggestions": []
-        }
-        # TSP 기반 권장사항이 있는 경우 suggestions 리스트에 매핑
-        for ip in improvement_points:
-            day_num = ip["day_number"]
-            day_data = next((d for d in days if d.get("day_number") == day_num), None)
-            if day_data:
-                places_list = day_data.get("places", [])
-                suggested_order = ip["suggested_order"]
-                sorted_places = sorted(places_list, key=lambda x: suggested_order.index(x.get("sequence", 1)) if x.get("sequence", 1) in suggested_order else 999)
-                applied_route_names = [p.get("title") or "알 수 없는 장소" for p in sorted_places]
-
-                ai_result["suggestions"].append({
-                    "type": "순서 변경",
-                    "title": f"방문 순서 변경 제안",
-                    "description": ip["message"],
-                    "applied_route": applied_route_names
-                })
+    # 추천 역시 규칙 엔진의 검증된 값만 사용한다. LLM 출력은 병합하지 않는다.
+    deterministic_suggestions = []
+    for ip in improvement_points:
+        day_num = ip["day_number"]
+        day_data = next((d for d in days if d.get("day_number") == day_num), None)
+        if day_data:
+            places_list = day_data.get("places", [])
+            suggested_order = ip["suggested_order"]
+            sorted_places = sorted(
+                places_list,
+                key=lambda x: suggested_order.index(x.get("sequence", 1))
+                if x.get("sequence", 1) in suggested_order else 999
+            )
+            applied_route_names = [p.get("title") or "알 수 없는 장소" for p in sorted_places]
+            deterministic_suggestions.append({
+                "type": "순서 변경",
+                "title": "방문 순서 변경 제안",
+                "description": ip["message"],
+                "day_number": day_num,
+                "applied_route": applied_route_names
+            })
 
     # AI 사용 여부와 무관하게 핵심 진단은 프론트 제안 목록에 노출한다.
     warning_suggestion_types = {
@@ -805,13 +815,12 @@ def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
         "EXCESSIVE_DISTANCE": ("동선 조정", "하루 이동거리 줄이기"),
         "TOO_PACKED_SCHEDULE": ("일정 조정", "일정 밀도 낮추기")
     }
-    ai_result.setdefault("suggestions", [])
     for warning in all_warnings:
         suggestion_meta = warning_suggestion_types.get(warning.get("type"))
         if not suggestion_meta:
             continue
         suggestion_type, suggestion_title = suggestion_meta
-        ai_result["suggestions"].append({
+        deterministic_suggestions.append({
             "type": suggestion_type,
             "title": suggestion_title,
             "description": warning.get("message", ""),
@@ -822,9 +831,9 @@ def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
 
     # 와이어프레임 및 기존 API 통합 호환 객체 조립 후 리턴
     return {
-        "overall_score": ai_result.get("total_score", final_score),
-        "status_label": ai_result.get("status_message", status_label),
-        "status_description": ai_result.get("status_description", status_description),
+        "overall_score": final_score,
+        "status_label": status_label,
+        "status_description": llm_status_description or status_description,
         "summary": summary_dict,
         "timeline": overall_timeline,
         "warnings": all_warnings,
@@ -837,13 +846,13 @@ def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
             } for ip in improvement_points
         ],
         # 프론트엔드 와이어프레임(4, 5번 화면) 직접 전달 필드
-        "total_score": ai_result.get("total_score", final_score),
-        "status_message": ai_result.get("status_message", status_label),
+        "total_score": final_score,
+        "status_message": status_label,
         "analysis_summary": {
             "total_distance": f"{round(total_distance, 1)}km",
             "total_duration": f"{int(total_transit_time // 60)}시간 {int(total_transit_time % 60)}분" if total_transit_time >= 60 else f"{int(total_transit_time)}분",
             "total_places": f"{total_places_count}곳",
             "transport_mode": default_transport_mode
         },
-        "suggestions": ai_result.get("suggestions", [])
+        "suggestions": deterministic_suggestions
     }
