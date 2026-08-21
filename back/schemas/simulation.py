@@ -44,6 +44,11 @@ class SimulationPlaceInput(BaseModel):
     mapx: Optional[float] = Field(None, description="경도")
     mapy: Optional[float] = Field(None, description="위도")
     stay_duration_minutes: Optional[int] = Field(None, description="체류 시간 (분)")
+    visit_start_time: Optional[str] = Field(
+        None,
+        pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$",
+        description="사용자가 지정한 방문 시작 시각 (HH:MM)",
+    )
     transport_mode_to_next: Optional[TransportMode] = Field(None, description="다음 장소로의 이동 수단. 없으면 최상위 transport_mode 사용")
 
 class SimulationDayInput(BaseModel):
@@ -122,3 +127,92 @@ class SimulationResponse(BaseModel):
     status_message: Optional[str] = Field(None, description="AI 요약 상태 메시지")
     analysis_summary: Optional[Dict[str, str]] = Field(None, description="AI가 가공한 누적 거리 및 이동 시간 요약")
     suggestions: Optional[List[Dict[str, Any]]] = Field(None, description="AI 개선 제안 목록 (Applied Route 포함)")
+
+
+class ApplyReorderSuggestionRequest(BaseModel):
+    itinerary: SimulationRequest
+    suggestion_id: str = Field(..., min_length=1)
+    day_number: int = Field(..., ge=1)
+    ordered_contentids: List[int] = Field(..., min_length=2)
+
+
+class SimulationComparison(BaseModel):
+    previous_score: int
+    updated_score: int
+    score_delta: int
+    previous_distance_km: float
+    updated_distance_km: float
+    distance_saved_km: float
+    previous_transit_minutes: int
+    updated_transit_minutes: int
+    transit_minutes_saved: int
+    previous_estimated_fare: int
+    updated_estimated_fare: int
+    estimated_fare_delta: int
+    previous_operating_hours_warnings: int = 0
+    updated_operating_hours_warnings: int = 0
+    previous_congestion_warnings: int = 0
+    updated_congestion_warnings: int = 0
+    previous_closed_place_warnings: int = 0
+    updated_closed_place_warnings: int = 0
+
+
+class ApplyReorderSuggestionResponse(BaseModel):
+    applied_suggestion_id: str
+    updated_itinerary: SimulationRequest
+    previous_result: SimulationResponse
+    updated_result: SimulationResponse
+    comparison: SimulationComparison
+
+
+class ApplyTransportSuggestionRequest(BaseModel):
+    itinerary: SimulationRequest
+    suggestion_id: str = Field(..., min_length=1)
+    day_number: int = Field(..., ge=1)
+    origin_contentid: int
+    destination_contentid: int
+    from_mode: TransportMode
+    to_mode: TransportMode
+
+
+class ApplyTransportSuggestionResponse(BaseModel):
+    applied_suggestion_id: str
+    updated_itinerary: SimulationRequest
+    previous_result: SimulationResponse
+    updated_result: SimulationResponse
+    comparison: SimulationComparison
+
+
+class ApplyTimeSuggestionRequest(BaseModel):
+    itinerary: SimulationRequest
+    suggestion_id: str = Field(..., min_length=1)
+    day_number: int = Field(..., ge=1)
+    contentid: int
+    from_time: str = Field(..., pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+    to_time: str = Field(..., pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+
+
+class ApplyTimeSuggestionResponse(BaseModel):
+    applied_suggestion_id: str
+    updated_itinerary: SimulationRequest
+    previous_result: SimulationResponse
+    updated_result: SimulationResponse
+    comparison: SimulationComparison
+
+
+class ApplyTripSuggestionRequest(BaseModel):
+    itinerary: SimulationRequest
+    suggestion_id: str = Field(..., min_length=1)
+    action: Literal["MOVE_PLACE_DAY", "REPLACE_CLOSED_PLACE", "OPTIMIZE_TRIP"]
+    contentid: Optional[int] = None
+    from_day_number: Optional[int] = Field(None, ge=1)
+    to_day_number: Optional[int] = Field(None, ge=1)
+    replacement_contentid: Optional[int] = None
+
+
+class ApplyTripSuggestionResponse(BaseModel):
+    applied_suggestion_id: str
+    updated_itinerary: SimulationRequest
+    previous_result: SimulationResponse
+    updated_result: SimulationResponse
+    comparison: SimulationComparison

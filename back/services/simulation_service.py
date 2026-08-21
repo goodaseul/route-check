@@ -3,6 +3,8 @@ import re
 import json
 import requests
 import pandas as pd
+from collections import Counter
+from copy import deepcopy
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
@@ -221,6 +223,80 @@ def get_default_stay_duration(content_type_name: str, lcls3_name: str) -> int:
     return type_defaults.get(content_type_name, 90)
 
 
+def get_closed_days_for_place(content_id: int) -> list[int]:
+    info = places_cache.get(content_id, {})
+    content_type_id = NAME_TO_TYPE_ID.get(info.get("contenttypename", "관광지"), "12")
+    detail = fetch_detail_intro(content_id, content_type_id)
+    _, restdate_text = extract_operating_and_holiday_text(detail, content_type_id)
+    return parse_closed_days(restdate_text)
+
+
+def find_open_day_number(itinerary_data: dict, content_id: int, excluded_day: int) -> int | None:
+    closed_days = get_closed_days_for_place(content_id)
+    for day in itinerary_data.get("days", []):
+        if day.get("day_number") == excluded_day:
+            continue
+        try:
+            weekday = datetime.strptime(day.get("date", ""), "%Y-%m-%d").weekday()
+        except ValueError:
+            continue
+        if weekday not in closed_days:
+            return day.get("day_number")
+    return None
+
+
+def find_replacement_place(content_id: int, date_str: str, excluded_ids: set[int]) -> dict | None:
+    """같은 시군구·콘텐츠 유형의 가까운 영업 후보를 선택한다."""
+    source = places_cache.get(content_id, {})
+    if not source:
+        return None
+    source_x = source.get("mapx")
+    source_y = source.get("mapy")
+    source_type = source.get("contenttypename")
+    source_region = source.get("lDongRegnNm")
+    source_district = source.get("lDongSignguNm")
+    try:
+        weekday = datetime.strptime(date_str, "%Y-%m-%d").weekday()
+    except ValueError:
+        return None
+
+    candidates = []
+    for candidate_id, candidate in places_cache.items():
+        if candidate_id == content_id or candidate_id in excluded_ids:
+            continue
+        if candidate.get("contenttypename") != source_type:
+            continue
+        if candidate.get("lDongRegnNm") != source_region:
+            continue
+        if source_district and candidate.get("lDongSignguNm") != source_district:
+            continue
+        try:
+            distance = calculate_haversine_distance(
+                float(source_y), float(source_x),
+                float(candidate.get("mapy")), float(candidate.get("mapx")),
+            )
+        except (TypeError, ValueError):
+            continue
+        candidates.append((distance, candidate_id, candidate))
+
+    for distance, candidate_id, candidate in sorted(candidates, key=lambda item: item[0])[:8]:
+        if weekday in get_closed_days_for_place(candidate_id):
+            continue
+        return {
+            "contentid": int(candidate_id),
+            "title": str(candidate.get("title") or "대체 장소"),
+            "mapx": float(candidate.get("mapx")),
+            "mapy": float(candidate.get("mapy")),
+            "distance_from_original_km": round(distance, 1),
+        }
+    return None
+
+
+def resequence_places(day: dict) -> None:
+    for sequence, place in enumerate(day.get("places", []), start=1):
+        place["sequence"] = sequence
+
+
 def get_place_congestion(content_id: int, content_type_name: str, title: str) -> dict:
     """
     관광지 ID, 카테고리, 장소명을 활용해 결정론적인 혼잡도 정보를 생성합니다.
@@ -313,9 +389,16 @@ def calculate_day_timeline(
                 "message": f"'{title}'은(는) 방문 예정 요일(휴무일: {restdate_text or '요일별 지정'})에 휴무일 가능성이 높습니다."
             })
 
-        # 도착 시각 및 출발 시각 연산
+        # 명시된 방문 시각은 대기 시간을 허용하되, 실제 도착 가능 시각보다
+        # 앞설 수는 없다. 이 규칙으로 이전 장소 및 이동 구간과의 충돌을 막는다.
+        requested_start_time = place.get("visit_start_time")
         arrive_time = current_time
-        depart_time = current_time + timedelta(minutes=stay_duration)
+        if requested_start_time:
+            requested_start = datetime.strptime(
+                f"{date_str} {requested_start_time}", "%Y-%m-%d %H:%M"
+            )
+            arrive_time = max(current_time, requested_start)
+        depart_time = arrive_time + timedelta(minutes=stay_duration)
 
         arrive_time_str = arrive_time.strftime("%H:%M")
         depart_time_str = depart_time.strftime("%H:%M")
@@ -330,12 +413,18 @@ def calculate_day_timeline(
                 close_dt = close_dt + timedelta(days=1)
 
             if arrive_time < open_dt or depart_time > close_dt:
-                warnings.append({
+                warning = {
                     "type": "OUT_OF_OPERATING_HOURS",
                     "contentid": content_id,
                     "title": title,
                     "message": f"'{title}'의 영업시간({open_time_str}~{close_time_str}) 외에 일정이 잡혀있습니다. (방문예정: {arrive_time_str}~{depart_time_str})"
-                })
+                }
+                if arrive_time < open_dt:
+                    warning.update({
+                        "from_time": arrive_time_str,
+                        "to_time": open_time_str,
+                    })
+                warnings.append(warning)
         except Exception:
             pass
 
@@ -359,6 +448,8 @@ def calculate_day_timeline(
                     "type": "PEAK_CONGESTION_OVERLAP",
                     "contentid": content_id,
                     "title": title,
+                    "from_time": arrive_time_str,
+                    "to_time": peak_end_str,
                     "message": f"'{title}' 방문 예정 시간({arrive_time_str}~{depart_time_str})이 혼잡 피크 시각({peak_start_str}~{peak_end_str})과 겹칩니다. {congestion['message']}"
                 })
         except Exception:
@@ -432,7 +523,14 @@ def calculate_day_timeline(
                     warnings.append({
                         "type": "FASTER_TRANSPORT_AVAILABLE",
                         "contentid": content_id,
+                        "destination_contentid": next_place.get("contentid"),
                         "title": title,
+                        "from_mode": mode,
+                        "to_mode": recommended_mode,
+                        "previous_duration_minutes": transit_dur,
+                        "updated_duration_minutes": recommended_duration,
+                        "previous_estimated_fare": estimated_fare,
+                        "updated_estimated_fare": alternatives[recommended_mode].get("estimated_fare") or 0,
                         "message": (
                             f"'{title}'에서 다음 장소까지 {mode_names.get(recommended_mode, recommended_mode)} 이동이 "
                             f"선택한 {mode_names.get(mode, mode)}보다 약 {transit_dur - recommended_duration}분 빠릅니다."
@@ -514,7 +612,10 @@ def suggest_optimized_order(places: list) -> list:
 
 def build_llm_prompt(itinerary_data: dict, timeline: list, warnings: list, summary: dict, start_date: str, end_date: str) -> str:
     """
-    OpenAI LLM 전달을 위한 상세 스케줄 Context 프롬프트 빌더.
+    결정론적 분석 결과를 사용자 친화적인 한 문단으로 설명하기 위한 프롬프트.
+
+    점수, 시간, 거리, 경고, 추천 및 방문 순서는 백엔드 규칙 엔진이
+    확정한다. LLM은 이 값을 생성하거나 변경하지 않고 설명 문장만 만든다.
     """
     schedule_text = ""
     for day in timeline:
@@ -549,8 +650,15 @@ def build_llm_prompt(itinerary_data: dict, timeline: list, warnings: list, summa
     else:
         warnings_text = "\n[특이사항 및 경고]\n- 특이사항 없음\n"
 
-    prompt = f"""당신의 역할은 사용자의 여행 일정을 전문적으로 진단하고 피드백을 주는 AI 여행 플래너입니다.
-제공된 여행 일정과 지도(Map) API 계산 결과를 참고하여, 이 일정이 동선상 효율적인지, 혼잡한 시간대를 적절히 피했는지 종합 분석해주세요.
+    prompt = f"""당신은 여행 일정 분석 결과를 자연스러운 한국어로 설명하는 편집자입니다.
+아래 내용은 백엔드 규칙 엔진과 외부 API가 이미 계산하고 확정한 사실입니다.
+
+중요한 제한사항:
+- 점수, 시간, 거리, 요금, 장소명, 방문 순서 및 경고를 새로 만들거나 수정하지 마세요.
+- 새로운 추천이나 적용 경로를 생성하지 마세요.
+- 입력에 없는 사실을 추측하지 마세요.
+- 숫자를 새로 계산하지 마세요.
+- 일정의 전반적인 상태를 설명하는 1~2문장의 한국어 설명만 작성하세요.
 
 [여행 기본 조건]
 - 시작일: {start_date} ~ 종료일: {end_date}
@@ -564,27 +672,13 @@ def build_llm_prompt(itinerary_data: dict, timeline: list, warnings: list, summa
 - 총 이동거리: {summary.get('total_distance_km')}km
 - 총 이동시간: {summary.get('total_transit_time_minutes')}분
 
-[출력 형식 및 가이드]
-반드시 다음 JSON 포맷으로 답변을 생성해주세요. 다른 잡설이나 설명 텍스트 없이 오직 JSON만 반환해야 합니다.
-
-{{
-  "total_score": 75, // 0 ~ 100점 사이의 종합 점수 (동선의 효율성, 혼잡성 중첩 등을 감안해 합리적으로 배점)
-  "status_message": "이동이 많은 구간이 있어요.", // 일정을 요약하는 짧은 한 줄 상태 메시지 (30자 내외)
-  "status_description": "전체적으로 동선은 무난하지만...", // 상세 분석 코멘트
-  "suggestions": [
-    {{
-      "type": "순서 변경", // '순서 변경', '시간 조정', '관광지 대체' 등
-      "title": "방문 순서 변경 제안",
-      "description": "B 관광지가 현재 가장 붐비는 시간대입니다. C 관광지를 먼저 방문하고 B를 나중에 가면 이동 시간을 15분 단축하고 혼잡도도 피할 수 있습니다.",
-      "applied_route": ["A", "C", "B"] // 제안이 적용될 경우의 권장되는 장소 방문 순서 (장소명(title) 리스트)
-    }}
-  ]
-}}
+[출력]
+status_description 필드 하나만 반환하세요.
 """
     return prompt
 
 
-def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
+def analyze_itinerary(itinerary_data: dict, db: Session, include_llm: bool = True) -> dict:
     """
     다중 일자 여행 계획 전체를 시뮬레이션 분석하여 종합 피드백 점수 및 경고 메시지를 계산.
     """
@@ -739,9 +833,9 @@ def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
                         "suggested_order": suggested_order
                     })
 
-    # --- AI(LLM) 기반의 분석 리포트 및 개선 피드백 획득 ---
+    # --- 결정론적 분석 결과 조립 ---
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    ai_result = None
+    llm_status_description = None
     summary_dict = {
         "total_distance_km": round(total_distance, 1),
         "total_transit_time_minutes": int(total_transit_time),
@@ -749,7 +843,7 @@ def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
         "total_duration_minutes": total_duration_minutes
     }
 
-    if OPENAI_API_KEY:
+    if OPENAI_API_KEY and include_llm:
         try:
             from openai import OpenAI
             client = OpenAI(api_key=OPENAI_API_KEY)
@@ -764,37 +858,57 @@ def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
             res = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.2,
-                response_format={"type": "json_object"}
+                temperature=0,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "itinerary_narrative",
+                        "strict": True,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "status_description": {"type": "string"}
+                            },
+                            "required": ["status_description"],
+                            "additionalProperties": False
+                        }
+                    }
+                }
             )
-            ai_result = json.loads(res.choices[0].message.content)
+            llm_result = json.loads(res.choices[0].message.content)
+            candidate = llm_result.get("status_description")
+            if isinstance(candidate, str) and candidate.strip():
+                llm_status_description = candidate.strip()
         except Exception as e:
             print(f"[OpenAI API Error] Failed to call OpenAI: {e}")
 
-    # fallback 또는 API 실패 시 로컬 룰 기반 가공
-    if not ai_result:
-        ai_result = {
-            "total_score": final_score,
-            "status_message": status_label,
-            "status_description": status_description,
-            "suggestions": []
-        }
-        # TSP 기반 권장사항이 있는 경우 suggestions 리스트에 매핑
-        for ip in improvement_points:
-            day_num = ip["day_number"]
-            day_data = next((d for d in days if d.get("day_number") == day_num), None)
-            if day_data:
-                places_list = day_data.get("places", [])
-                suggested_order = ip["suggested_order"]
-                sorted_places = sorted(places_list, key=lambda x: suggested_order.index(x.get("sequence", 1)) if x.get("sequence", 1) in suggested_order else 999)
-                applied_route_names = [p.get("title") or "알 수 없는 장소" for p in sorted_places]
-
-                ai_result["suggestions"].append({
-                    "type": "순서 변경",
-                    "title": f"방문 순서 변경 제안",
-                    "description": ip["message"],
-                    "applied_route": applied_route_names
-                })
+    # 추천 역시 규칙 엔진의 검증된 값만 사용한다. LLM 출력은 병합하지 않는다.
+    deterministic_suggestions = []
+    for ip in improvement_points:
+        day_num = ip["day_number"]
+        day_data = next((d for d in days if d.get("day_number") == day_num), None)
+        if day_data:
+            places_list = day_data.get("places", [])
+            suggested_order = ip["suggested_order"]
+            sorted_places = sorted(
+                places_list,
+                key=lambda x: suggested_order.index(x.get("sequence", 1))
+                if x.get("sequence", 1) in suggested_order else 999
+            )
+            applied_route_names = [p.get("title") or "알 수 없는 장소" for p in sorted_places]
+            deterministic_suggestions.append({
+                "suggestion_id": f"reorder-day-{day_num}-{'-'.join(map(str, suggested_order))}",
+                "type": "순서 변경",
+                "title": "방문 순서 변경 제안",
+                "description": ip["message"],
+                "day_number": day_num,
+                "applied_route": applied_route_names,
+                "operation": {
+                    "type": "REORDER",
+                    "day_number": day_num,
+                    "ordered_contentids": [p.get("contentid") for p in sorted_places],
+                },
+            })
 
     # AI 사용 여부와 무관하게 핵심 진단은 프론트 제안 목록에 노출한다.
     warning_suggestion_types = {
@@ -805,26 +919,140 @@ def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
         "EXCESSIVE_DISTANCE": ("동선 조정", "하루 이동거리 줄이기"),
         "TOO_PACKED_SCHEDULE": ("일정 조정", "일정 밀도 낮추기")
     }
-    ai_result.setdefault("suggestions", [])
     for warning in all_warnings:
         suggestion_meta = warning_suggestion_types.get(warning.get("type"))
         if not suggestion_meta:
             continue
         suggestion_type, suggestion_title = suggestion_meta
-        ai_result["suggestions"].append({
+        suggestion = {
             "type": suggestion_type,
             "title": suggestion_title,
             "description": warning.get("message", ""),
             "day_number": warning.get("day_number"),
             "contentid": warning.get("contentid"),
             "applied_route": []
+        }
+        if warning.get("type") == "FASTER_TRANSPORT_AVAILABLE":
+            origin_id = warning.get("contentid")
+            destination_id = warning.get("destination_contentid")
+            from_mode = warning.get("from_mode")
+            to_mode = warning.get("to_mode")
+            suggestion.update({
+                "suggestion_id": (
+                    f"transport-day-{warning.get('day_number')}-{origin_id}-{destination_id}-{to_mode}"
+                ),
+                "operation": {
+                    "type": "CHANGE_TRANSPORT",
+                    "day_number": warning.get("day_number"),
+                    "origin_contentid": origin_id,
+                    "destination_contentid": destination_id,
+                    "from_mode": from_mode,
+                    "to_mode": to_mode,
+                    "previous_duration_minutes": warning.get("previous_duration_minutes"),
+                    "updated_duration_minutes": warning.get("updated_duration_minutes"),
+                    "previous_estimated_fare": warning.get("previous_estimated_fare") or 0,
+                    "updated_estimated_fare": warning.get("updated_estimated_fare") or 0,
+                },
+            })
+        elif warning.get("type") in {
+            "PEAK_CONGESTION_OVERLAP",
+            "OUT_OF_OPERATING_HOURS",
+        } and warning.get("from_time") and warning.get("to_time"):
+            content_id = warning.get("contentid")
+            suggestion.update({
+                "suggestion_id": (
+                    f"time-day-{warning.get('day_number')}-{content_id}-"
+                    f"{str(warning.get('to_time')).replace(':', '')}"
+                ),
+                "operation": {
+                    "type": "CHANGE_VISIT_TIME",
+                    "day_number": warning.get("day_number"),
+                    "contentid": content_id,
+                    "from_time": warning.get("from_time"),
+                    "to_time": warning.get("to_time"),
+                    "reason": warning.get("type"),
+                },
+            })
+        elif warning.get("type") == "CLOSED_PLACE":
+            content_id = warning.get("contentid")
+            day_number = warning.get("day_number")
+            target_day = next(
+                (day for day in days if day.get("day_number") == day_number), None
+            )
+            open_day_number = find_open_day_number(
+                itinerary_data, content_id, day_number
+            )
+            if open_day_number:
+                suggestion.update({
+                    "suggestion_id": f"move-day-{day_number}-{open_day_number}-{content_id}",
+                    "title": "휴무일을 피해 다른 날짜로 이동",
+                    "operation": {
+                        "type": "MOVE_PLACE_DAY",
+                        "contentid": content_id,
+                        "from_day_number": day_number,
+                        "to_day_number": open_day_number,
+                    },
+                })
+
+            excluded_ids = {
+                place.get("contentid")
+                for day in days
+                for place in day.get("places", [])
+            }
+            replacement = find_replacement_place(
+                content_id,
+                (target_day or {}).get("date", ""),
+                excluded_ids,
+            )
+            if replacement:
+                deterministic_suggestions.append({
+                    "suggestion_id": f"replace-day-{day_number}-{content_id}-{replacement['contentid']}",
+                    "type": "장소 대체",
+                    "title": "휴무 장소와 비슷한 장소 추천",
+                    "description": (
+                        f"'{warning.get('title')}' 대신 약 {replacement['distance_from_original_km']}km 거리의 "
+                        f"'{replacement['title']}'을 방문할 수 있습니다."
+                    ),
+                    "day_number": day_number,
+                    "contentid": content_id,
+                    "applied_route": [],
+                    "operation": {
+                        "type": "REPLACE_CLOSED_PLACE",
+                        "day_number": day_number,
+                        "contentid": content_id,
+                        "replacement": replacement,
+                    },
+                })
+        if warning.get("type") != "CLOSED_PLACE" or suggestion.get("operation"):
+            deterministic_suggestions.append(suggestion)
+
+    day_place_counts = [len(day.get("places", [])) for day in days]
+    needs_global_optimization = (
+        len(days) >= 2
+        and (
+            any(warning.get("type") == "CLOSED_PLACE" for warning in all_warnings)
+            or (
+                day_place_counts
+                and max(day_place_counts) - min(day_place_counts) >= 2
+            )
+        )
+    )
+    if needs_global_optimization:
+        deterministic_suggestions.append({
+            "suggestion_id": "optimize-entire-trip",
+            "type": "전체 일정 최적화",
+            "title": "여행 전체 일정 균형 맞추기",
+            "description": "휴무일, 날짜별 장소 수와 이동 동선을 함께 고려해 전체 일정을 다시 배치합니다.",
+            "day_number": 1,
+            "applied_route": [],
+            "operation": {"type": "OPTIMIZE_TRIP"},
         })
 
     # 와이어프레임 및 기존 API 통합 호환 객체 조립 후 리턴
     return {
-        "overall_score": ai_result.get("total_score", final_score),
-        "status_label": ai_result.get("status_message", status_label),
-        "status_description": ai_result.get("status_description", status_description),
+        "overall_score": final_score,
+        "status_label": status_label,
+        "status_description": llm_status_description or status_description,
         "summary": summary_dict,
         "timeline": overall_timeline,
         "warnings": all_warnings,
@@ -837,13 +1065,439 @@ def analyze_itinerary(itinerary_data: dict, db: Session) -> dict:
             } for ip in improvement_points
         ],
         # 프론트엔드 와이어프레임(4, 5번 화면) 직접 전달 필드
-        "total_score": ai_result.get("total_score", final_score),
-        "status_message": ai_result.get("status_message", status_label),
+        "total_score": final_score,
+        "status_message": status_label,
         "analysis_summary": {
             "total_distance": f"{round(total_distance, 1)}km",
             "total_duration": f"{int(total_transit_time // 60)}시간 {int(total_transit_time % 60)}분" if total_transit_time >= 60 else f"{int(total_transit_time)}분",
             "total_places": f"{total_places_count}곳",
             "transport_mode": default_transport_mode
         },
-        "suggestions": ai_result.get("suggestions", [])
+        "suggestions": deterministic_suggestions
+    }
+
+
+def apply_reorder_suggestion(payload: dict, db: Session) -> dict:
+    """장소 누락·중복 없이 같은 날짜 안에서만 순서를 변경하고 재분석한다."""
+    itinerary = deepcopy(payload.get("itinerary") or {})
+    day_number = int(payload.get("day_number") or 0)
+    ordered_contentids = payload.get("ordered_contentids") or []
+    suggestion_id = str(payload.get("suggestion_id") or "").strip()
+
+    target_day = next(
+        (day for day in itinerary.get("days", []) if day.get("day_number") == day_number),
+        None,
+    )
+    if target_day is None:
+        raise ValueError("순서를 변경할 여행 일차를 찾을 수 없습니다.")
+
+    places = target_day.get("places") or []
+    current_contentids = [place.get("contentid") for place in places]
+    if Counter(current_contentids) != Counter(ordered_contentids):
+        raise ValueError("순서 변경에는 기존 일정과 동일한 장소가 한 번씩 포함되어야 합니다.")
+    if current_contentids == ordered_contentids:
+        raise ValueError("이미 적용된 방문 순서입니다.")
+
+    places_by_contentid = {place.get("contentid"): place for place in places}
+    reordered_places = []
+    for sequence, contentid in enumerate(ordered_contentids, start=1):
+        place = deepcopy(places_by_contentid[contentid])
+        place["sequence"] = sequence
+        reordered_places.append(place)
+    target_day["places"] = reordered_places
+
+    original_itinerary = deepcopy(payload.get("itinerary") or {})
+    previous_result = analyze_itinerary(original_itinerary, db, include_llm=False)
+    updated_result = analyze_itinerary(itinerary, db, include_llm=False)
+
+    previous_summary = previous_result["summary"]
+    updated_summary = updated_result["summary"]
+    previous_score = previous_result["total_score"]
+    updated_score = updated_result["total_score"]
+    previous_fare = calculate_total_estimated_fare(previous_result)
+    updated_fare = calculate_total_estimated_fare(updated_result)
+
+    return {
+        "applied_suggestion_id": suggestion_id,
+        "updated_itinerary": itinerary,
+        "previous_result": previous_result,
+        "updated_result": updated_result,
+        "comparison": {
+            "previous_score": previous_score,
+            "updated_score": updated_score,
+            "score_delta": updated_score - previous_score,
+            "previous_distance_km": previous_summary["total_distance_km"],
+            "updated_distance_km": updated_summary["total_distance_km"],
+            "distance_saved_km": round(
+                previous_summary["total_distance_km"] - updated_summary["total_distance_km"], 1
+            ),
+            "previous_transit_minutes": previous_summary["total_transit_time_minutes"],
+            "updated_transit_minutes": updated_summary["total_transit_time_minutes"],
+            "transit_minutes_saved": (
+                previous_summary["total_transit_time_minutes"]
+                - updated_summary["total_transit_time_minutes"]
+            ),
+            "previous_estimated_fare": previous_fare,
+            "updated_estimated_fare": updated_fare,
+            "estimated_fare_delta": updated_fare - previous_fare,
+        },
+    }
+
+
+def calculate_total_estimated_fare(result: dict) -> int:
+    return sum(
+        int((place.get("transit_to_next") or {}).get("estimated_fare") or 0)
+        for day in result.get("timeline", [])
+        for place in day.get("schedule", [])
+    )
+
+
+def count_warning(result: dict, warning_type: str) -> int:
+    return sum(1 for warning in result.get("warnings", []) if warning.get("type") == warning_type)
+
+
+def apply_transport_suggestion(payload: dict, db: Session) -> dict:
+    """연속 구간의 이동수단만 변경하고 결정론적 분석 결과를 비교한다."""
+    itinerary = deepcopy(payload.get("itinerary") or {})
+    original_itinerary = deepcopy(payload.get("itinerary") or {})
+    day_number = int(payload.get("day_number") or 0)
+    origin_contentid = payload.get("origin_contentid")
+    destination_contentid = payload.get("destination_contentid")
+    from_mode = payload.get("from_mode")
+    to_mode = payload.get("to_mode")
+    suggestion_id = str(payload.get("suggestion_id") or "").strip()
+
+    target_day = next(
+        (day for day in itinerary.get("days", []) if day.get("day_number") == day_number),
+        None,
+    )
+    if target_day is None:
+        raise ValueError("이동수단을 변경할 여행 일차를 찾을 수 없습니다.")
+
+    places = target_day.get("places") or []
+    origin_index = next(
+        (index for index, place in enumerate(places) if place.get("contentid") == origin_contentid),
+        -1,
+    )
+    if origin_index < 0 or origin_index >= len(places) - 1:
+        raise ValueError("이동수단을 변경할 출발 구간을 찾을 수 없습니다.")
+    if places[origin_index + 1].get("contentid") != destination_contentid:
+        raise ValueError("이동수단 변경은 현재 일정의 연속된 구간에만 적용할 수 있습니다.")
+
+    current_mode = places[origin_index].get("transport_mode_to_next") or itinerary.get(
+        "transport_mode", "car"
+    )
+    if current_mode != from_mode:
+        raise ValueError("일정의 현재 이동수단이 제안 생성 시점과 다릅니다.")
+    if current_mode == to_mode:
+        raise ValueError("이미 적용된 이동수단입니다.")
+
+    places[origin_index]["transport_mode_to_next"] = to_mode
+    previous_result = analyze_itinerary(original_itinerary, db, include_llm=False)
+    updated_result = analyze_itinerary(itinerary, db, include_llm=False)
+    previous_summary = previous_result["summary"]
+    updated_summary = updated_result["summary"]
+    previous_score = previous_result["total_score"]
+    updated_score = updated_result["total_score"]
+    previous_fare = calculate_total_estimated_fare(previous_result)
+    updated_fare = calculate_total_estimated_fare(updated_result)
+
+    return {
+        "applied_suggestion_id": suggestion_id,
+        "updated_itinerary": itinerary,
+        "previous_result": previous_result,
+        "updated_result": updated_result,
+        "comparison": {
+            "previous_score": previous_score,
+            "updated_score": updated_score,
+            "score_delta": updated_score - previous_score,
+            "previous_distance_km": previous_summary["total_distance_km"],
+            "updated_distance_km": updated_summary["total_distance_km"],
+            "distance_saved_km": round(
+                previous_summary["total_distance_km"] - updated_summary["total_distance_km"], 1
+            ),
+            "previous_transit_minutes": previous_summary["total_transit_time_minutes"],
+            "updated_transit_minutes": updated_summary["total_transit_time_minutes"],
+            "transit_minutes_saved": (
+                previous_summary["total_transit_time_minutes"]
+                - updated_summary["total_transit_time_minutes"]
+            ),
+            "previous_estimated_fare": previous_fare,
+            "updated_estimated_fare": updated_fare,
+            "estimated_fare_delta": updated_fare - previous_fare,
+        },
+    }
+
+
+def apply_time_suggestion(payload: dict, db: Session) -> dict:
+    """한 장소의 시작 시각을 변경하고 운영시간·혼잡 경고를 다시 계산한다."""
+    itinerary = deepcopy(payload.get("itinerary") or {})
+    original_itinerary = deepcopy(payload.get("itinerary") or {})
+    day_number = int(payload.get("day_number") or 0)
+    contentid = payload.get("contentid")
+    from_time = str(payload.get("from_time") or "")
+    to_time = str(payload.get("to_time") or "")
+    suggestion_id = str(payload.get("suggestion_id") or "").strip()
+
+    target_day = next(
+        (day for day in itinerary.get("days", []) if day.get("day_number") == day_number),
+        None,
+    )
+    if target_day is None:
+        raise ValueError("시간을 변경할 여행 일차를 찾을 수 없습니다.")
+
+    target_place = next(
+        (place for place in target_day.get("places", []) if place.get("contentid") == contentid),
+        None,
+    )
+    if target_place is None:
+        raise ValueError("시간을 변경할 장소를 찾을 수 없습니다.")
+    if from_time == to_time:
+        raise ValueError("이미 적용된 방문 시작시간입니다.")
+
+    previous_result = analyze_itinerary(original_itinerary, db, include_llm=False)
+    previous_day = next(
+        (day for day in previous_result.get("timeline", []) if day.get("day_number") == day_number),
+        None,
+    )
+    previous_place = next(
+        (
+            place for place in (previous_day or {}).get("schedule", [])
+            if place.get("contentid") == contentid
+        ),
+        None,
+    )
+    if previous_place is None or previous_place.get("start_time") != from_time:
+        raise ValueError("일정의 현재 방문 시간이 제안 생성 시점과 다릅니다.")
+
+    target_place["visit_start_time"] = to_time
+    updated_result = analyze_itinerary(itinerary, db, include_llm=False)
+    updated_day = next(
+        (day for day in updated_result.get("timeline", []) if day.get("day_number") == day_number),
+        None,
+    )
+    updated_place = next(
+        (
+            place for place in (updated_day or {}).get("schedule", [])
+            if place.get("contentid") == contentid
+        ),
+        None,
+    )
+    if updated_place is None or updated_place.get("start_time") != to_time:
+        raise ValueError("이전 일정과 이동시간 때문에 제안된 방문 시간을 적용할 수 없습니다.")
+
+    previous_summary = previous_result["summary"]
+    updated_summary = updated_result["summary"]
+    previous_fare = calculate_total_estimated_fare(previous_result)
+    updated_fare = calculate_total_estimated_fare(updated_result)
+
+    return {
+        "applied_suggestion_id": suggestion_id,
+        "updated_itinerary": itinerary,
+        "previous_result": previous_result,
+        "updated_result": updated_result,
+        "comparison": {
+            "previous_score": previous_result["total_score"],
+            "updated_score": updated_result["total_score"],
+            "score_delta": updated_result["total_score"] - previous_result["total_score"],
+            "previous_distance_km": previous_summary["total_distance_km"],
+            "updated_distance_km": updated_summary["total_distance_km"],
+            "distance_saved_km": round(
+                previous_summary["total_distance_km"] - updated_summary["total_distance_km"], 1
+            ),
+            "previous_transit_minutes": previous_summary["total_transit_time_minutes"],
+            "updated_transit_minutes": updated_summary["total_transit_time_minutes"],
+            "transit_minutes_saved": (
+                previous_summary["total_transit_time_minutes"]
+                - updated_summary["total_transit_time_minutes"]
+            ),
+            "previous_estimated_fare": previous_fare,
+            "updated_estimated_fare": updated_fare,
+            "estimated_fare_delta": updated_fare - previous_fare,
+            "previous_operating_hours_warnings": count_warning(
+                previous_result, "OUT_OF_OPERATING_HOURS"
+            ),
+            "updated_operating_hours_warnings": count_warning(
+                updated_result, "OUT_OF_OPERATING_HOURS"
+            ),
+            "previous_congestion_warnings": count_warning(
+                previous_result, "PEAK_CONGESTION_OVERLAP"
+            ),
+            "updated_congestion_warnings": count_warning(
+                updated_result, "PEAK_CONGESTION_OVERLAP"
+            ),
+        },
+    }
+
+
+def optimize_entire_itinerary(itinerary: dict) -> None:
+    """휴무일을 우선 해소하고 날짜별 장소 수를 균형화한 뒤 동선을 정렬한다."""
+    days = itinerary.get("days", [])
+    if len(days) < 2:
+        raise ValueError("전체 여행 최적화는 여행 일차가 2일 이상일 때 적용할 수 있습니다.")
+
+    # 휴무 장소를 영업하는 다른 날짜로 이동한다.
+    for source_day in list(days):
+        for place in list(source_day.get("places", [])):
+            try:
+                weekday = datetime.strptime(source_day.get("date", ""), "%Y-%m-%d").weekday()
+            except ValueError:
+                continue
+            if weekday not in get_closed_days_for_place(place.get("contentid")):
+                continue
+            destination_number = find_open_day_number(
+                itinerary, place.get("contentid"), source_day.get("day_number")
+            )
+            destination_day = next(
+                (day for day in days if day.get("day_number") == destination_number), None
+            )
+            if destination_day:
+                source_day["places"].remove(place)
+                moved_place = deepcopy(place)
+                moved_place.pop("visit_start_time", None)
+                destination_day.setdefault("places", []).append(moved_place)
+
+    # 날짜별 개수 차이가 1 이하가 될 때까지 과밀 일자의 마지막 장소를 이동한다.
+    while days:
+        fullest = max(days, key=lambda day: len(day.get("places", [])))
+        emptiest = min(days, key=lambda day: len(day.get("places", [])))
+        if len(fullest.get("places", [])) - len(emptiest.get("places", [])) <= 1:
+            break
+        moved_place = fullest["places"].pop()
+        moved_place.pop("visit_start_time", None)
+        emptiest.setdefault("places", []).append(moved_place)
+
+    # 각 날짜 안에서는 첫 장소를 고정한 근거리 순서로 정렬한다.
+    for day in days:
+        resequence_places(day)
+        places = day.get("places", [])
+        if len(places) >= 3:
+            suggested_order = suggest_optimized_order(places)
+            day["places"] = sorted(
+                places,
+                key=lambda place: suggested_order.index(place.get("sequence")),
+            )
+        resequence_places(day)
+
+
+def build_full_comparison(previous_result: dict, updated_result: dict) -> dict:
+    previous_summary = previous_result["summary"]
+    updated_summary = updated_result["summary"]
+    previous_fare = calculate_total_estimated_fare(previous_result)
+    updated_fare = calculate_total_estimated_fare(updated_result)
+    return {
+        "previous_score": previous_result["total_score"],
+        "updated_score": updated_result["total_score"],
+        "score_delta": updated_result["total_score"] - previous_result["total_score"],
+        "previous_distance_km": previous_summary["total_distance_km"],
+        "updated_distance_km": updated_summary["total_distance_km"],
+        "distance_saved_km": round(
+            previous_summary["total_distance_km"] - updated_summary["total_distance_km"], 1
+        ),
+        "previous_transit_minutes": previous_summary["total_transit_time_minutes"],
+        "updated_transit_minutes": updated_summary["total_transit_time_minutes"],
+        "transit_minutes_saved": (
+            previous_summary["total_transit_time_minutes"]
+            - updated_summary["total_transit_time_minutes"]
+        ),
+        "previous_estimated_fare": previous_fare,
+        "updated_estimated_fare": updated_fare,
+        "estimated_fare_delta": updated_fare - previous_fare,
+        "previous_operating_hours_warnings": count_warning(
+            previous_result, "OUT_OF_OPERATING_HOURS"
+        ),
+        "updated_operating_hours_warnings": count_warning(
+            updated_result, "OUT_OF_OPERATING_HOURS"
+        ),
+        "previous_congestion_warnings": count_warning(
+            previous_result, "PEAK_CONGESTION_OVERLAP"
+        ),
+        "updated_congestion_warnings": count_warning(
+            updated_result, "PEAK_CONGESTION_OVERLAP"
+        ),
+        "previous_closed_place_warnings": count_warning(previous_result, "CLOSED_PLACE"),
+        "updated_closed_place_warnings": count_warning(updated_result, "CLOSED_PLACE"),
+    }
+
+
+def apply_trip_suggestion(payload: dict, db: Session) -> dict:
+    """날짜 이동·휴무 장소 대체·전체 최적화를 적용하고 전체 일정을 재분석한다."""
+    itinerary = deepcopy(payload.get("itinerary") or {})
+    original_itinerary = deepcopy(payload.get("itinerary") or {})
+    action = payload.get("action")
+    contentid = payload.get("contentid")
+
+    if action == "MOVE_PLACE_DAY":
+        from_day = next(
+            (
+                day for day in itinerary.get("days", [])
+                if day.get("day_number") == payload.get("from_day_number")
+            ),
+            None,
+        )
+        to_day = next(
+            (
+                day for day in itinerary.get("days", [])
+                if day.get("day_number") == payload.get("to_day_number")
+            ),
+            None,
+        )
+        if not from_day or not to_day or from_day is to_day:
+            raise ValueError("장소를 이동할 출발일과 도착일을 확인할 수 없습니다.")
+        place = next(
+            (place for place in from_day.get("places", []) if place.get("contentid") == contentid),
+            None,
+        )
+        if not place:
+            raise ValueError("다른 날짜로 이동할 장소를 찾을 수 없습니다.")
+        from_day["places"].remove(place)
+        moved_place = deepcopy(place)
+        moved_place.pop("visit_start_time", None)
+        to_day.setdefault("places", []).append(moved_place)
+        resequence_places(from_day)
+        resequence_places(to_day)
+    elif action == "REPLACE_CLOSED_PLACE":
+        day = next(
+            (
+                day for day in itinerary.get("days", [])
+                if day.get("day_number") == payload.get("from_day_number")
+            ),
+            None,
+        )
+        replacement_id = payload.get("replacement_contentid")
+        replacement = places_cache.get(replacement_id, {})
+        if not day or not replacement:
+            raise ValueError("휴무 장소 또는 대체 장소 정보를 확인할 수 없습니다.")
+        place_index = next(
+            (
+                index for index, place in enumerate(day.get("places", []))
+                if place.get("contentid") == contentid
+            ),
+            -1,
+        )
+        if place_index < 0:
+            raise ValueError("교체할 휴무 장소를 찾을 수 없습니다.")
+        old_place = day["places"][place_index]
+        day["places"][place_index] = {
+            "sequence": old_place.get("sequence", place_index + 1),
+            "contentid": int(replacement_id),
+            "title": str(replacement.get("title") or "대체 장소"),
+            "mapx": float(replacement.get("mapx")),
+            "mapy": float(replacement.get("mapy")),
+            "stay_duration_minutes": old_place.get("stay_duration_minutes"),
+            "transport_mode_to_next": old_place.get("transport_mode_to_next"),
+        }
+    elif action == "OPTIMIZE_TRIP":
+        optimize_entire_itinerary(itinerary)
+    else:
+        raise ValueError("지원하지 않는 전체 여행 제안입니다.")
+
+    previous_result = analyze_itinerary(original_itinerary, db, include_llm=False)
+    updated_result = analyze_itinerary(itinerary, db, include_llm=False)
+    return {
+        "applied_suggestion_id": str(payload.get("suggestion_id") or ""),
+        "updated_itinerary": itinerary,
+        "previous_result": previous_result,
+        "updated_result": updated_result,
+        "comparison": build_full_comparison(previous_result, updated_result),
     }

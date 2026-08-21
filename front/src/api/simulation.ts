@@ -4,6 +4,14 @@ import type {
   SimulationResponse,
   TransitInfoRequest,
   TransitInfoResponse,
+  ApplyReorderSuggestionRequest,
+  ApplyReorderSuggestionResponse,
+  ApplyTransportSuggestionRequest,
+  ApplyTransportSuggestionResponse,
+  ApplyTimeSuggestionRequest,
+  ApplyTimeSuggestionResponse,
+  ApplyTripSuggestionRequest,
+  ApplyTripSuggestionResponse,
 } from "./types/simulation";
 
 export function analyzeSimulation(body: SimulationRequest) {
@@ -15,6 +23,42 @@ export function analyzeSimulation(body: SimulationRequest) {
 
 export function fetchTransitInfo(body: TransitInfoRequest) {
   return fetcher<TransitInfoResponse>("/api/route/transit-info", {
+    method: "POST",
+    body,
+  });
+}
+
+export function applyReorderSuggestion(body: ApplyReorderSuggestionRequest) {
+  return fetcher<ApplyReorderSuggestionResponse>(
+    "/api/simulation/apply-reorder",
+    {
+      method: "POST",
+      body,
+    },
+  );
+}
+
+export function applyTransportSuggestion(
+  body: ApplyTransportSuggestionRequest,
+) {
+  return fetcher<ApplyTransportSuggestionResponse>(
+    "/api/simulation/apply-transport",
+    {
+      method: "POST",
+      body,
+    },
+  );
+}
+
+export function applyTimeSuggestion(body: ApplyTimeSuggestionRequest) {
+  return fetcher<ApplyTimeSuggestionResponse>("/api/simulation/apply-time", {
+    method: "POST",
+    body,
+  });
+}
+
+export function applyTripSuggestion(body: ApplyTripSuggestionRequest) {
+  return fetcher<ApplyTripSuggestionResponse>("/api/simulation/apply-trip", {
     method: "POST",
     body,
   });

@@ -3,10 +3,20 @@ from sqlalchemy.orm import Session
 from db.database import get_db
 from schemas.simulation import (
     TransitInfoRequest, TransitInfoResponse,
-    SimulationRequest, SimulationResponse
+    SimulationRequest, SimulationResponse,
+    ApplyReorderSuggestionRequest, ApplyReorderSuggestionResponse,
+    ApplyTransportSuggestionRequest, ApplyTransportSuggestionResponse,
+    ApplyTimeSuggestionRequest, ApplyTimeSuggestionResponse,
+    ApplyTripSuggestionRequest, ApplyTripSuggestionResponse,
 )
 from services.route_service import get_route_info_with_cache
-from services.simulation_service import analyze_itinerary
+from services.simulation_service import (
+    analyze_itinerary,
+    apply_reorder_suggestion,
+    apply_transport_suggestion,
+    apply_time_suggestion,
+    apply_trip_suggestion,
+)
 
 router = APIRouter(prefix="/api", tags=["Simulation"])
 
@@ -78,3 +88,93 @@ async def analyze_travel_itinerary(request: SimulationRequest, db: Session = Dep
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"여행 일정을 시뮬레이션 분석하는 중 오류가 발생했습니다: {str(e)}"
         )
+
+
+@router.post(
+    "/simulation/apply-reorder",
+    response_model=ApplyReorderSuggestionResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def apply_reorder(
+    request: ApplyReorderSuggestionRequest,
+    db: Session = Depends(get_db),
+):
+    """검증된 장소 순서를 적용하고 변경 전·후 일정을 다시 분석한다."""
+    try:
+        return apply_reorder_suggestion(request.model_dump(), db)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"순서 변경 제안을 적용하는 중 오류가 발생했습니다: {str(exc)}",
+        ) from exc
+
+
+@router.post(
+    "/simulation/apply-transport",
+    response_model=ApplyTransportSuggestionResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def apply_transport(
+    request: ApplyTransportSuggestionRequest,
+    db: Session = Depends(get_db),
+):
+    """연속된 한 구간의 이동수단을 변경하고 시간·요금을 다시 분석한다."""
+    try:
+        return apply_transport_suggestion(request.model_dump(), db)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"이동수단 변경 제안을 적용하는 중 오류가 발생했습니다: {str(exc)}",
+        ) from exc
+
+
+@router.post(
+    "/simulation/apply-time",
+    response_model=ApplyTimeSuggestionResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def apply_time(
+    request: ApplyTimeSuggestionRequest,
+    db: Session = Depends(get_db),
+):
+    """한 장소의 방문 시작시간을 변경하고 운영시간·혼잡도를 다시 분석한다."""
+    try:
+        return apply_time_suggestion(request.model_dump(), db)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"시간 조정 제안을 적용하는 중 오류가 발생했습니다: {str(exc)}",
+        ) from exc
+
+
+@router.post(
+    "/simulation/apply-trip",
+    response_model=ApplyTripSuggestionResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def apply_trip(
+    request: ApplyTripSuggestionRequest,
+    db: Session = Depends(get_db),
+):
+    """날짜 이동, 휴무 장소 대체 또는 전체 여행 최적화를 적용한다."""
+    try:
+        return apply_trip_suggestion(request.model_dump(), db)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"전체 여행 제안을 적용하는 중 오류가 발생했습니다: {str(exc)}",
+        ) from exc
