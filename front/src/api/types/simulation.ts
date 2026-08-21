@@ -133,6 +133,25 @@ export type SimulationSuggestion = {
         to_time: string;
         reason: "PEAK_CONGESTION_OVERLAP" | "OUT_OF_OPERATING_HOURS";
       }
+    | {
+        type: "MOVE_PLACE_DAY";
+        contentid: number;
+        from_day_number: number;
+        to_day_number: number;
+      }
+    | {
+        type: "REPLACE_CLOSED_PLACE";
+        day_number: number;
+        contentid: number;
+        replacement: {
+          contentid: number;
+          title: string;
+          mapx: number;
+          mapy: number;
+          distance_from_original_km: number;
+        };
+      }
+    | { type: "OPTIMIZE_TRIP" }
     | null;
 };
 
@@ -153,6 +172,8 @@ export type SimulationComparison = {
   updated_operating_hours_warnings: number;
   previous_congestion_warnings: number;
   updated_congestion_warnings: number;
+  previous_closed_place_warnings: number;
+  updated_closed_place_warnings: number;
 };
 
 export type ApplyReorderSuggestionRequest = {
@@ -192,3 +213,15 @@ export type ApplyTimeSuggestionRequest = {
 };
 
 export type ApplyTimeSuggestionResponse = ApplyReorderSuggestionResponse;
+
+export type ApplyTripSuggestionRequest = {
+  itinerary: SimulationRequest;
+  suggestion_id: string;
+  action: "MOVE_PLACE_DAY" | "REPLACE_CLOSED_PLACE" | "OPTIMIZE_TRIP";
+  contentid?: number;
+  from_day_number?: number;
+  to_day_number?: number;
+  replacement_contentid?: number;
+};
+
+export type ApplyTripSuggestionResponse = ApplyReorderSuggestionResponse;

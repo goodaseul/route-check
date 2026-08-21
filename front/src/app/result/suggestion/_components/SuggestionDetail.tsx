@@ -7,6 +7,7 @@ import {
   applyReorderSuggestion,
   applyTransportSuggestion,
   applyTimeSuggestion,
+  applyTripSuggestion,
 } from "@/api/simulation";
 import { showToast } from "@/lib/utils/toast";
 import { usePlanScheduleStore } from "@/stores/usePlanScheduleStore";
@@ -46,6 +47,7 @@ export default function SuggestionDetail({
     (state) => state.applyTransportResult,
   );
   const applyTimeResult = usePlanScheduleStore((state) => state.applyTimeResult);
+  const applyTripResult = usePlanScheduleStore((state) => state.applyTripResult);
   const [isApplying, setIsApplying] = useState(false);
   const suggestion = getSimulationSuggestions(result).find(
     (item) => item.id === suggestionId && item.type === type,
@@ -115,6 +117,39 @@ export default function SuggestionDetail({
           day: `day${operation.day_number}`,
           contentId: operation.contentid,
           visitStartTime: operation.to_time,
+          request: response.updated_itinerary,
+          previousResult: response.previous_result,
+          updatedResult: response.updated_result,
+          comparison: response.comparison,
+          suggestionId: response.applied_suggestion_id,
+        });
+      } else if (
+        operation.type === "MOVE_PLACE_DAY" ||
+        operation.type === "REPLACE_CLOSED_PLACE" ||
+        operation.type === "OPTIMIZE_TRIP"
+      ) {
+        const response = await applyTripSuggestion({
+          itinerary: analysisRequest,
+          suggestion_id: suggestion.id,
+          action: operation.type,
+          contentid:
+            operation.type === "OPTIMIZE_TRIP" ? undefined : operation.contentid,
+          from_day_number:
+            operation.type === "MOVE_PLACE_DAY"
+              ? operation.from_day_number
+              : operation.type === "REPLACE_CLOSED_PLACE"
+                ? operation.day_number
+                : undefined,
+          to_day_number:
+            operation.type === "MOVE_PLACE_DAY"
+              ? operation.to_day_number
+              : undefined,
+          replacement_contentid:
+            operation.type === "REPLACE_CLOSED_PLACE"
+              ? operation.replacement.contentid
+              : undefined,
+        });
+        applyTripResult({
           request: response.updated_itinerary,
           previousResult: response.previous_result,
           updatedResult: response.updated_result,

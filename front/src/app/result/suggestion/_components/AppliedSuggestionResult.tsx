@@ -129,6 +129,11 @@ export default function AppliedSuggestionResult({
                   label="혼잡시간 경고"
                   before={`${comparison.previous_congestion_warnings ?? 0}건`}
                   after={`${comparison.updated_congestion_warnings ?? 0}건`}
+                />
+                <ComparisonRow
+                  label="휴무 장소 경고"
+                  before={`${comparison.previous_closed_place_warnings ?? 0}건`}
+                  after={`${comparison.updated_closed_place_warnings ?? 0}건`}
                   isLast
                 />
               </dl>

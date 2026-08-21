@@ -70,6 +70,13 @@ type PlanScheduleState = {
     comparison: SimulationComparison;
     suggestionId: string;
   }) => void;
+  applyTripResult: (params: {
+    request: SimulationRequest;
+    previousResult: SimulationResponse;
+    updatedResult: SimulationResponse;
+    comparison: SimulationComparison;
+    suggestionId: string;
+  }) => void;
 };
 
 export const usePlanScheduleStore = create<PlanScheduleState>()(
@@ -220,6 +227,47 @@ export const usePlanScheduleStore = create<PlanScheduleState>()(
           analysisComparison: comparison,
           lastAppliedSuggestionId: suggestionId,
         })),
+      applyTripResult: ({
+        request,
+        previousResult,
+        updatedResult,
+        comparison,
+        suggestionId,
+      }) =>
+        set((state) => {
+          const existingItems = new Map(
+            Object.values(state.schedules)
+              .flat()
+              .map((item) => [item.contentId, item]),
+          );
+          const schedules = Object.fromEntries(
+            request.days.map((day) => [
+              `day${day.day_number}`,
+              day.places.map((place) => {
+                const existing = existingItems.get(place.contentid);
+                return {
+                  id: existing?.id ?? String(place.contentid),
+                  contentId: place.contentid,
+                  name: place.title,
+                  address: existing?.address,
+                  imageSrc: existing?.imageSrc,
+                  lat: place.mapy,
+                  lng: place.mapx,
+                  transportModeToNext: place.transport_mode_to_next ?? undefined,
+                  visitStartTime: place.visit_start_time ?? undefined,
+                } satisfies ScheduleItem;
+              }),
+            ]),
+          );
+          return {
+            schedules,
+            analysisRequest: request,
+            previousAnalysisResult: previousResult,
+            analysisResult: updatedResult,
+            analysisComparison: comparison,
+            lastAppliedSuggestionId: suggestionId,
+          };
+        }),
     }),
     {
       name: "route-check-plan-schedules",

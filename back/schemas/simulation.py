@@ -153,6 +153,8 @@ class SimulationComparison(BaseModel):
     updated_operating_hours_warnings: int = 0
     previous_congestion_warnings: int = 0
     updated_congestion_warnings: int = 0
+    previous_closed_place_warnings: int = 0
+    updated_closed_place_warnings: int = 0
 
 
 class ApplyReorderSuggestionResponse(BaseModel):
@@ -191,6 +193,24 @@ class ApplyTimeSuggestionRequest(BaseModel):
 
 
 class ApplyTimeSuggestionResponse(BaseModel):
+    applied_suggestion_id: str
+    updated_itinerary: SimulationRequest
+    previous_result: SimulationResponse
+    updated_result: SimulationResponse
+    comparison: SimulationComparison
+
+
+class ApplyTripSuggestionRequest(BaseModel):
+    itinerary: SimulationRequest
+    suggestion_id: str = Field(..., min_length=1)
+    action: Literal["MOVE_PLACE_DAY", "REPLACE_CLOSED_PLACE", "OPTIMIZE_TRIP"]
+    contentid: Optional[int] = None
+    from_day_number: Optional[int] = Field(None, ge=1)
+    to_day_number: Optional[int] = Field(None, ge=1)
+    replacement_contentid: Optional[int] = None
+
+
+class ApplyTripSuggestionResponse(BaseModel):
     applied_suggestion_id: str
     updated_itinerary: SimulationRequest
     previous_result: SimulationResponse

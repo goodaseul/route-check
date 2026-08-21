@@ -10,6 +10,8 @@ import type {
   ApplyTransportSuggestionResponse,
   ApplyTimeSuggestionRequest,
   ApplyTimeSuggestionResponse,
+  ApplyTripSuggestionRequest,
+  ApplyTripSuggestionResponse,
 } from "./types/simulation";
 
 export function analyzeSimulation(body: SimulationRequest) {
@@ -50,6 +52,13 @@ export function applyTransportSuggestion(
 
 export function applyTimeSuggestion(body: ApplyTimeSuggestionRequest) {
   return fetcher<ApplyTimeSuggestionResponse>("/api/simulation/apply-time", {
+    method: "POST",
+    body,
+  });
+}
+
+export function applyTripSuggestion(body: ApplyTripSuggestionRequest) {
+  return fetcher<ApplyTripSuggestionResponse>("/api/simulation/apply-trip", {
     method: "POST",
     body,
   });

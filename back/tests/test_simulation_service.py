@@ -384,5 +384,118 @@ class ApplyTimeSuggestionTest(unittest.TestCase):
         self.assertEqual(timeline[1]["start_time"], "10:30")
 
 
+class ApplyTripSuggestionTest(unittest.TestCase):
+    def setUp(self):
+        self.itinerary = {
+            "start_date": "2026-08-24",
+            "end_date": "2026-08-25",
+            "transport_mode": "car",
+            "days": [
+                {
+                    "day_number": 1,
+                    "date": "2026-08-24",
+                    "places": [
+                        {"sequence": 1, "contentid": 10, "title": "A", "mapx": 127.0, "mapy": 37.0},
+                        {"sequence": 2, "contentid": 20, "title": "B", "mapx": 127.1, "mapy": 37.1},
+                    ],
+                },
+                {
+                    "day_number": 2,
+                    "date": "2026-08-25",
+                    "places": [
+                        {"sequence": 1, "contentid": 30, "title": "C", "mapx": 127.2, "mapy": 37.2},
+                    ],
+                },
+            ],
+        }
+
+    @staticmethod
+    def result(score, closed_count):
+        return {
+            "total_score": score,
+            "summary": {
+                "total_distance_km": 10.0,
+                "total_transit_time_minutes": 40,
+            },
+            "timeline": [],
+            "warnings": [{"type": "CLOSED_PLACE"}] * closed_count,
+        }
+
+    def test_moves_place_to_another_day_and_resequences(self):
+        payload = {
+            "itinerary": self.itinerary,
+            "suggestion_id": "move-day-1-2-20",
+            "action": "MOVE_PLACE_DAY",
+            "contentid": 20,
+            "from_day_number": 1,
+            "to_day_number": 2,
+        }
+        with patch.object(
+            simulation_service,
+            "analyze_itinerary",
+            side_effect=[self.result(80, 1), self.result(95, 0)],
+        ):
+            result = simulation_service.apply_trip_suggestion(payload, MagicMock())
+
+        days = result["updated_itinerary"]["days"]
+        self.assertEqual([place["contentid"] for place in days[0]["places"]], [10])
+        self.assertEqual([place["contentid"] for place in days[1]["places"]], [30, 20])
+        self.assertEqual([place["sequence"] for place in days[1]["places"]], [1, 2])
+        self.assertEqual(result["comparison"]["previous_closed_place_warnings"], 1)
+        self.assertEqual(result["comparison"]["updated_closed_place_warnings"], 0)
+
+    def test_replaces_closed_place_with_local_candidate(self):
+        payload = {
+            "itinerary": self.itinerary,
+            "suggestion_id": "replace-day-1-20-99",
+            "action": "REPLACE_CLOSED_PLACE",
+            "contentid": 20,
+            "from_day_number": 1,
+            "replacement_contentid": 99,
+        }
+        replacement = {
+            "title": "대체 장소",
+            "mapx": 127.11,
+            "mapy": 37.11,
+        }
+        with (
+            patch.dict(simulation_service.places_cache, {99: replacement}),
+            patch.object(
+                simulation_service,
+                "analyze_itinerary",
+                side_effect=[self.result(80, 1), self.result(95, 0)],
+            ),
+        ):
+            result = simulation_service.apply_trip_suggestion(payload, MagicMock())
+
+        place = result["updated_itinerary"]["days"][0]["places"][1]
+        self.assertEqual(place["contentid"], 99)
+        self.assertEqual(place["title"], "대체 장소")
+
+    def test_global_optimization_balances_days(self):
+        self.itinerary["days"][0]["places"].extend([
+            {"sequence": 3, "contentid": 40, "title": "D"},
+            {"sequence": 4, "contentid": 50, "title": "E"},
+        ])
+        payload = {
+            "itinerary": self.itinerary,
+            "suggestion_id": "optimize-entire-trip",
+            "action": "OPTIMIZE_TRIP",
+        }
+        with (
+            patch.object(simulation_service, "get_closed_days_for_place", return_value=[]),
+            patch.object(simulation_service, "suggest_optimized_order", side_effect=lambda places: [p["sequence"] for p in places]),
+            patch.object(
+                simulation_service,
+                "analyze_itinerary",
+                side_effect=[self.result(90, 0), self.result(95, 0)],
+            ),
+        ):
+            result = simulation_service.apply_trip_suggestion(payload, MagicMock())
+
+        counts = [len(day["places"]) for day in result["updated_itinerary"]["days"]]
+        self.assertLessEqual(max(counts) - min(counts), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

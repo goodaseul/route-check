@@ -124,6 +124,59 @@ export function getSimulationSuggestionDetail(
       effects: [{ label: "분석 기준", value: reason, tone: "blue" }],
     };
   }
+  if (operation?.type === "MOVE_PLACE_DAY") {
+    const place = daySchedule.find(
+      (item) => item.contentid === operation.contentid,
+    );
+    return {
+      type: suggestion.type,
+      title: suggestion.title,
+      appliedDescription: `${place?.title ?? "장소"} → DAY ${operation.to_day_number}`,
+      changes: [
+        { label: "장소", value: place?.title ?? "방문 장소" },
+        { label: "변경 전", value: `DAY ${operation.from_day_number}` },
+        {
+          label: "변경 후",
+          value: `DAY ${operation.to_day_number}`,
+          emphasized: true,
+        },
+      ],
+      effects: [{ label: "예상 효과", value: "휴무일 회피 및 일정 재분석", tone: "blue" }],
+    };
+  }
+  if (operation?.type === "REPLACE_CLOSED_PLACE") {
+    const place = daySchedule.find(
+      (item) => item.contentid === operation.contentid,
+    );
+    return {
+      type: suggestion.type,
+      title: suggestion.title,
+      appliedDescription: operation.replacement.title,
+      changes: [
+        { label: "변경 전", value: place?.title ?? "휴무 장소" },
+        { label: "변경 후", value: operation.replacement.title, emphasized: true },
+      ],
+      effects: [
+        {
+          label: "기존 장소와 거리",
+          value: `${operation.replacement.distance_from_original_km}km`,
+          tone: "green",
+        },
+      ],
+    };
+  }
+  if (operation?.type === "OPTIMIZE_TRIP") {
+    return {
+      type: suggestion.type,
+      title: suggestion.title,
+      appliedDescription: "전체 여행 일정 재배치",
+      changes: [
+        { label: "변경 전", value: "현재 날짜별 일정" },
+        { label: "변경 후", value: "휴무일·일정 밀도·동선 최적화", emphasized: true },
+      ],
+      effects: [{ label: "분석 범위", value: "여행 전체 일차", tone: "blue" }],
+    };
+  }
 
   return {
     type: suggestion.type,
