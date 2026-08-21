@@ -57,6 +57,52 @@ export function getSimulationSuggestionDetail(
   const beforeRoute = daySchedule.map((place) => place.title).join(" → ");
   const afterRoute = suggestion.raw.applied_route?.join(" → ");
   const isOrderSuggestion = suggestion.type === "order" && afterRoute;
+  const operation = suggestion.raw.operation;
+  if (suggestion.type === "transport" && operation?.type === "CHANGE_TRANSPORT") {
+    const origin = daySchedule.find(
+      (place) => place.contentid === operation.origin_contentid,
+    );
+    const destination = daySchedule.find(
+      (place) => place.contentid === operation.destination_contentid,
+    );
+    const modeLabel = (mode: string) =>
+      mode === "car" ? "자차" : mode === "public" ? "대중교통" : mode;
+    const fareDelta =
+      operation.updated_estimated_fare - operation.previous_estimated_fare;
+
+    return {
+      type: suggestion.type,
+      title: suggestion.title,
+      appliedDescription: `${origin?.title ?? "출발지"} → ${destination?.title ?? "도착지"}`,
+      changes: [
+        {
+          label: "구간",
+          value: `${origin?.title ?? "출발지"} → ${destination?.title ?? "도착지"}`,
+        },
+        {
+          label: "변경 전",
+          value: `${modeLabel(operation.from_mode)} ${operation.previous_duration_minutes}분`,
+        },
+        {
+          label: "변경 후",
+          value: `${modeLabel(operation.to_mode)} ${operation.updated_duration_minutes}분`,
+          emphasized: true,
+        },
+      ],
+      effects: [
+        {
+          label: "이동시간",
+          value: `${operation.previous_duration_minutes - operation.updated_duration_minutes}분 단축`,
+          tone: "blue",
+        },
+        {
+          label: "예상 비용",
+          value: `${fareDelta >= 0 ? "+" : ""}${fareDelta.toLocaleString()}원`,
+          tone: fareDelta > 0 ? "red" : "green",
+        },
+      ],
+    };
+  }
 
   return {
     type: suggestion.type,

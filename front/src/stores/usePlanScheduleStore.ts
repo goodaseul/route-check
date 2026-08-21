@@ -6,6 +6,7 @@ import type {
   SimulationComparison,
   SimulationRequest,
   SimulationResponse,
+  TransportMode,
 } from "@/api/types/simulation";
 
 export type ScheduleItem = {
@@ -17,6 +18,7 @@ export type ScheduleItem = {
   travelTime?: string;
   lat?: number;
   lng?: number;
+  transportModeToNext?: TransportMode;
 };
 
 type PlanScheduleState = {
@@ -41,6 +43,16 @@ type PlanScheduleState = {
   applyReorderResult: (params: {
     day: string;
     orderedContentIds: number[];
+    request: SimulationRequest;
+    previousResult: SimulationResponse;
+    updatedResult: SimulationResponse;
+    comparison: SimulationComparison;
+    suggestionId: string;
+  }) => void;
+  applyTransportResult: (params: {
+    day: string;
+    originContentId: number;
+    transportMode: TransportMode;
     request: SimulationRequest;
     previousResult: SimulationResponse;
     updatedResult: SimulationResponse;
@@ -147,6 +159,31 @@ export const usePlanScheduleStore = create<PlanScheduleState>()(
             lastAppliedSuggestionId: suggestionId,
           };
         }),
+      applyTransportResult: ({
+        day,
+        originContentId,
+        transportMode,
+        request,
+        previousResult,
+        updatedResult,
+        comparison,
+        suggestionId,
+      }) =>
+        set((state) => ({
+          schedules: {
+            ...state.schedules,
+            [day]: (state.schedules[day] ?? []).map((item) =>
+              item.contentId === originContentId
+                ? { ...item, transportModeToNext: transportMode }
+                : item,
+            ),
+          },
+          analysisRequest: request,
+          previousAnalysisResult: previousResult,
+          analysisResult: updatedResult,
+          analysisComparison: comparison,
+          lastAppliedSuggestionId: suggestionId,
+        })),
     }),
     {
       name: "route-check-plan-schedules",

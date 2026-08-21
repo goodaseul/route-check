@@ -114,6 +114,11 @@ export default function AppliedSuggestionResult({
                   label="이동 시간"
                   before={`${comparison.previous_transit_minutes}분`}
                   after={`${comparison.updated_transit_minutes}분`}
+                />
+                <ComparisonRow
+                  label="예상 교통비"
+                  before={`${comparison.previous_estimated_fare.toLocaleString()}원`}
+                  after={`${comparison.updated_estimated_fare.toLocaleString()}원`}
                   isLast
                 />
               </dl>

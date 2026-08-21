@@ -434,7 +434,14 @@ def calculate_day_timeline(
                     warnings.append({
                         "type": "FASTER_TRANSPORT_AVAILABLE",
                         "contentid": content_id,
+                        "destination_contentid": next_place.get("contentid"),
                         "title": title,
+                        "from_mode": mode,
+                        "to_mode": recommended_mode,
+                        "previous_duration_minutes": transit_dur,
+                        "updated_duration_minutes": recommended_duration,
+                        "previous_estimated_fare": estimated_fare,
+                        "updated_estimated_fare": alternatives[recommended_mode].get("estimated_fare") or 0,
                         "message": (
                             f"'{title}'에서 다음 장소까지 {mode_names.get(recommended_mode, recommended_mode)} 이동이 "
                             f"선택한 {mode_names.get(mode, mode)}보다 약 {transit_dur - recommended_duration}분 빠릅니다."
@@ -828,14 +835,37 @@ def analyze_itinerary(itinerary_data: dict, db: Session, include_llm: bool = Tru
         if not suggestion_meta:
             continue
         suggestion_type, suggestion_title = suggestion_meta
-        deterministic_suggestions.append({
+        suggestion = {
             "type": suggestion_type,
             "title": suggestion_title,
             "description": warning.get("message", ""),
             "day_number": warning.get("day_number"),
             "contentid": warning.get("contentid"),
             "applied_route": []
-        })
+        }
+        if warning.get("type") == "FASTER_TRANSPORT_AVAILABLE":
+            origin_id = warning.get("contentid")
+            destination_id = warning.get("destination_contentid")
+            from_mode = warning.get("from_mode")
+            to_mode = warning.get("to_mode")
+            suggestion.update({
+                "suggestion_id": (
+                    f"transport-day-{warning.get('day_number')}-{origin_id}-{destination_id}-{to_mode}"
+                ),
+                "operation": {
+                    "type": "CHANGE_TRANSPORT",
+                    "day_number": warning.get("day_number"),
+                    "origin_contentid": origin_id,
+                    "destination_contentid": destination_id,
+                    "from_mode": from_mode,
+                    "to_mode": to_mode,
+                    "previous_duration_minutes": warning.get("previous_duration_minutes"),
+                    "updated_duration_minutes": warning.get("updated_duration_minutes"),
+                    "previous_estimated_fare": warning.get("previous_estimated_fare") or 0,
+                    "updated_estimated_fare": warning.get("updated_estimated_fare") or 0,
+                },
+            })
+        deterministic_suggestions.append(suggestion)
 
     # 와이어프레임 및 기존 API 통합 호환 객체 조립 후 리턴
     return {
@@ -903,6 +933,8 @@ def apply_reorder_suggestion(payload: dict, db: Session) -> dict:
     updated_summary = updated_result["summary"]
     previous_score = previous_result["total_score"]
     updated_score = updated_result["total_score"]
+    previous_fare = calculate_total_estimated_fare(previous_result)
+    updated_fare = calculate_total_estimated_fare(updated_result)
 
     return {
         "applied_suggestion_id": suggestion_id,
@@ -924,5 +956,89 @@ def apply_reorder_suggestion(payload: dict, db: Session) -> dict:
                 previous_summary["total_transit_time_minutes"]
                 - updated_summary["total_transit_time_minutes"]
             ),
+            "previous_estimated_fare": previous_fare,
+            "updated_estimated_fare": updated_fare,
+            "estimated_fare_delta": updated_fare - previous_fare,
+        },
+    }
+
+
+def calculate_total_estimated_fare(result: dict) -> int:
+    return sum(
+        int((place.get("transit_to_next") or {}).get("estimated_fare") or 0)
+        for day in result.get("timeline", [])
+        for place in day.get("schedule", [])
+    )
+
+
+def apply_transport_suggestion(payload: dict, db: Session) -> dict:
+    """연속 구간의 이동수단만 변경하고 결정론적 분석 결과를 비교한다."""
+    itinerary = deepcopy(payload.get("itinerary") or {})
+    original_itinerary = deepcopy(payload.get("itinerary") or {})
+    day_number = int(payload.get("day_number") or 0)
+    origin_contentid = payload.get("origin_contentid")
+    destination_contentid = payload.get("destination_contentid")
+    from_mode = payload.get("from_mode")
+    to_mode = payload.get("to_mode")
+    suggestion_id = str(payload.get("suggestion_id") or "").strip()
+
+    target_day = next(
+        (day for day in itinerary.get("days", []) if day.get("day_number") == day_number),
+        None,
+    )
+    if target_day is None:
+        raise ValueError("이동수단을 변경할 여행 일차를 찾을 수 없습니다.")
+
+    places = target_day.get("places") or []
+    origin_index = next(
+        (index for index, place in enumerate(places) if place.get("contentid") == origin_contentid),
+        -1,
+    )
+    if origin_index < 0 or origin_index >= len(places) - 1:
+        raise ValueError("이동수단을 변경할 출발 구간을 찾을 수 없습니다.")
+    if places[origin_index + 1].get("contentid") != destination_contentid:
+        raise ValueError("이동수단 변경은 현재 일정의 연속된 구간에만 적용할 수 있습니다.")
+
+    current_mode = places[origin_index].get("transport_mode_to_next") or itinerary.get(
+        "transport_mode", "car"
+    )
+    if current_mode != from_mode:
+        raise ValueError("일정의 현재 이동수단이 제안 생성 시점과 다릅니다.")
+    if current_mode == to_mode:
+        raise ValueError("이미 적용된 이동수단입니다.")
+
+    places[origin_index]["transport_mode_to_next"] = to_mode
+    previous_result = analyze_itinerary(original_itinerary, db, include_llm=False)
+    updated_result = analyze_itinerary(itinerary, db, include_llm=False)
+    previous_summary = previous_result["summary"]
+    updated_summary = updated_result["summary"]
+    previous_score = previous_result["total_score"]
+    updated_score = updated_result["total_score"]
+    previous_fare = calculate_total_estimated_fare(previous_result)
+    updated_fare = calculate_total_estimated_fare(updated_result)
+
+    return {
+        "applied_suggestion_id": suggestion_id,
+        "updated_itinerary": itinerary,
+        "previous_result": previous_result,
+        "updated_result": updated_result,
+        "comparison": {
+            "previous_score": previous_score,
+            "updated_score": updated_score,
+            "score_delta": updated_score - previous_score,
+            "previous_distance_km": previous_summary["total_distance_km"],
+            "updated_distance_km": updated_summary["total_distance_km"],
+            "distance_saved_km": round(
+                previous_summary["total_distance_km"] - updated_summary["total_distance_km"], 1
+            ),
+            "previous_transit_minutes": previous_summary["total_transit_time_minutes"],
+            "updated_transit_minutes": updated_summary["total_transit_time_minutes"],
+            "transit_minutes_saved": (
+                previous_summary["total_transit_time_minutes"]
+                - updated_summary["total_transit_time_minutes"]
+            ),
+            "previous_estimated_fare": previous_fare,
+            "updated_estimated_fare": updated_fare,
+            "estimated_fare_delta": updated_fare - previous_fare,
         },
     }

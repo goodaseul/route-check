@@ -141,9 +141,30 @@ class SimulationComparison(BaseModel):
     previous_transit_minutes: int
     updated_transit_minutes: int
     transit_minutes_saved: int
+    previous_estimated_fare: int
+    updated_estimated_fare: int
+    estimated_fare_delta: int
 
 
 class ApplyReorderSuggestionResponse(BaseModel):
+    applied_suggestion_id: str
+    updated_itinerary: SimulationRequest
+    previous_result: SimulationResponse
+    updated_result: SimulationResponse
+    comparison: SimulationComparison
+
+
+class ApplyTransportSuggestionRequest(BaseModel):
+    itinerary: SimulationRequest
+    suggestion_id: str = Field(..., min_length=1)
+    day_number: int = Field(..., ge=1)
+    origin_contentid: int
+    destination_contentid: int
+    from_mode: TransportMode
+    to_mode: TransportMode
+
+
+class ApplyTransportSuggestionResponse(BaseModel):
     applied_suggestion_id: str
     updated_itinerary: SimulationRequest
     previous_result: SimulationResponse

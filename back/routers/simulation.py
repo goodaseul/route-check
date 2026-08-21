@@ -5,9 +5,14 @@ from schemas.simulation import (
     TransitInfoRequest, TransitInfoResponse,
     SimulationRequest, SimulationResponse,
     ApplyReorderSuggestionRequest, ApplyReorderSuggestionResponse,
+    ApplyTransportSuggestionRequest, ApplyTransportSuggestionResponse,
 )
 from services.route_service import get_route_info_with_cache
-from services.simulation_service import analyze_itinerary, apply_reorder_suggestion
+from services.simulation_service import (
+    analyze_itinerary,
+    apply_reorder_suggestion,
+    apply_transport_suggestion,
+)
 
 router = APIRouter(prefix="/api", tags=["Simulation"])
 
@@ -102,4 +107,28 @@ async def apply_reorder(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"순서 변경 제안을 적용하는 중 오류가 발생했습니다: {str(exc)}",
+        ) from exc
+
+
+@router.post(
+    "/simulation/apply-transport",
+    response_model=ApplyTransportSuggestionResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def apply_transport(
+    request: ApplyTransportSuggestionRequest,
+    db: Session = Depends(get_db),
+):
+    """연속된 한 구간의 이동수단을 변경하고 시간·요금을 다시 분석한다."""
+    try:
+        return apply_transport_suggestion(request.model_dump(), db)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"이동수단 변경 제안을 적용하는 중 오류가 발생했습니다: {str(exc)}",
         ) from exc

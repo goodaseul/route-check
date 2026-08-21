@@ -106,11 +106,25 @@ export type SimulationSuggestion = {
   day_number?: number | null;
   contentid?: number | null;
   applied_route?: string[] | null;
-  operation?: {
-    type: "REORDER";
-    day_number: number;
-    ordered_contentids: number[];
-  } | null;
+  operation?:
+    | {
+        type: "REORDER";
+        day_number: number;
+        ordered_contentids: number[];
+      }
+    | {
+        type: "CHANGE_TRANSPORT";
+        day_number: number;
+        origin_contentid: number;
+        destination_contentid: number;
+        from_mode: TransportMode;
+        to_mode: TransportMode;
+        previous_duration_minutes: number;
+        updated_duration_minutes: number;
+        previous_estimated_fare: number;
+        updated_estimated_fare: number;
+      }
+    | null;
 };
 
 export type SimulationComparison = {
@@ -123,6 +137,9 @@ export type SimulationComparison = {
   previous_transit_minutes: number;
   updated_transit_minutes: number;
   transit_minutes_saved: number;
+  previous_estimated_fare: number;
+  updated_estimated_fare: number;
+  estimated_fare_delta: number;
 };
 
 export type ApplyReorderSuggestionRequest = {
@@ -139,3 +156,15 @@ export type ApplyReorderSuggestionResponse = {
   updated_result: SimulationResponse;
   comparison: SimulationComparison;
 };
+
+export type ApplyTransportSuggestionRequest = {
+  itinerary: SimulationRequest;
+  suggestion_id: string;
+  day_number: number;
+  origin_contentid: number;
+  destination_contentid: number;
+  from_mode: TransportMode;
+  to_mode: TransportMode;
+};
+
+export type ApplyTransportSuggestionResponse = ApplyReorderSuggestionResponse;

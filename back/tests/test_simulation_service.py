@@ -165,5 +165,91 @@ class ApplyReorderSuggestionTest(unittest.TestCase):
             simulation_service.apply_reorder_suggestion(payload, MagicMock())
 
 
+class ApplyTransportSuggestionTest(unittest.TestCase):
+    def setUp(self):
+        self.itinerary = {
+            "start_date": "2026-08-22",
+            "end_date": "2026-08-22",
+            "transport_mode": "public",
+            "days": [
+                {
+                    "day_number": 1,
+                    "date": "2026-08-22",
+                    "places": [
+                        {"sequence": 1, "contentid": 10, "title": "A"},
+                        {"sequence": 2, "contentid": 20, "title": "B"},
+                        {"sequence": 3, "contentid": 30, "title": "C"},
+                    ],
+                }
+            ],
+        }
+
+    @staticmethod
+    def analysis_result(score, distance, minutes, fare):
+        return {
+            "total_score": score,
+            "summary": {
+                "total_distance_km": distance,
+                "total_transit_time_minutes": minutes,
+            },
+            "timeline": [
+                {
+                    "schedule": [
+                        {"transit_to_next": {"estimated_fare": fare}},
+                        {"transit_to_next": None},
+                    ]
+                }
+            ],
+        }
+
+    def test_changes_only_target_segment_and_returns_time_fare_comparison(self):
+        previous = self.analysis_result(80, 12.0, 70, 3100)
+        updated = self.analysis_result(88, 12.5, 45, 1550)
+        payload = {
+            "itinerary": self.itinerary,
+            "suggestion_id": "transport-day-1-10-20-car",
+            "day_number": 1,
+            "origin_contentid": 10,
+            "destination_contentid": 20,
+            "from_mode": "public",
+            "to_mode": "car",
+        }
+
+        with patch.object(
+            simulation_service,
+            "analyze_itinerary",
+            side_effect=[previous, updated],
+        ) as analyze:
+            result = simulation_service.apply_transport_suggestion(
+                payload, MagicMock()
+            )
+
+        places = result["updated_itinerary"]["days"][0]["places"]
+        self.assertEqual(places[0]["transport_mode_to_next"], "car")
+        self.assertNotIn("transport_mode_to_next", places[1])
+        self.assertEqual(result["comparison"]["transit_minutes_saved"], 25)
+        self.assertEqual(result["comparison"]["previous_estimated_fare"], 3100)
+        self.assertEqual(result["comparison"]["updated_estimated_fare"], 1550)
+        self.assertEqual(result["comparison"]["estimated_fare_delta"], -1550)
+        self.assertEqual(analyze.call_count, 2)
+        self.assertTrue(
+            all(call.kwargs["include_llm"] is False for call in analyze.call_args_list)
+        )
+
+    def test_rejects_non_adjacent_segment(self):
+        payload = {
+            "itinerary": self.itinerary,
+            "suggestion_id": "invalid",
+            "day_number": 1,
+            "origin_contentid": 10,
+            "destination_contentid": 30,
+            "from_mode": "public",
+            "to_mode": "car",
+        }
+
+        with self.assertRaisesRegex(ValueError, "연속된 구간"):
+            simulation_service.apply_transport_suggestion(payload, MagicMock())
+
+
 if __name__ == "__main__":
     unittest.main()

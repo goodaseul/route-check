@@ -58,6 +58,7 @@ export function useSchedulePage(
   const transitQueries = useQueries({
     queries: selectedSchedule.slice(0, -1).map((origin, index) => {
       const destination = selectedSchedule[index + 1];
+      const segmentTransport = origin.transportModeToNext ?? transport;
       const coordinates = [
         origin.lat,
         origin.lng,
@@ -72,7 +73,7 @@ export function useSchedulePage(
         queryKey: transitKeys.segment(
           origin.contentId,
           destination?.contentId ?? 0,
-          transport,
+          segmentTransport,
           coordinates.map((coordinate) => coordinate ?? 0),
         ),
         queryFn: () =>
@@ -87,7 +88,7 @@ export function useSchedulePage(
               mapx: destination!.lng!,
               mapy: destination!.lat!,
             },
-            transport_mode: transport,
+            transport_mode: segmentTransport,
             include_alternatives: false,
           }),
         enabled: Boolean(destination && hasCoordinates),
@@ -106,9 +107,12 @@ export function useSchedulePage(
     if (query?.isPending) travelTime = "이동시간 계산 중...";
     if (query?.isError) travelTime = "이동시간을 확인할 수 없어요";
     if (query?.data) {
-      const modeLabel = transport === "car" ? "자차" : "대중교통";
+      const segmentTransport = item.transportModeToNext ?? transport;
+      const modeLabel = segmentTransport === "car" ? "자차" : "대중교통";
       const estimatePrefix =
-        query.data.alternatives[transport]?.source === "heuristics" ? "약 " : "";
+        query.data.alternatives[segmentTransport]?.source === "heuristics"
+          ? "약 "
+          : "";
       travelTime = `${modeLabel} ${estimatePrefix}${query.data.duration_minutes}분 소요`;
     }
     return { ...item, travelTime };
@@ -207,6 +211,7 @@ function createSimulationRequest(
                 title: item.name,
                 mapx: item.lng,
                 mapy: item.lat,
+                transport_mode_to_next: item.transportModeToNext,
               },
             ]
           : [],
