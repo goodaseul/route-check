@@ -315,9 +315,16 @@ def calculate_day_timeline(
                 "message": f"'{title}'은(는) 방문 예정 요일(휴무일: {restdate_text or '요일별 지정'})에 휴무일 가능성이 높습니다."
             })
 
-        # 도착 시각 및 출발 시각 연산
+        # 명시된 방문 시각은 대기 시간을 허용하되, 실제 도착 가능 시각보다
+        # 앞설 수는 없다. 이 규칙으로 이전 장소 및 이동 구간과의 충돌을 막는다.
+        requested_start_time = place.get("visit_start_time")
         arrive_time = current_time
-        depart_time = current_time + timedelta(minutes=stay_duration)
+        if requested_start_time:
+            requested_start = datetime.strptime(
+                f"{date_str} {requested_start_time}", "%Y-%m-%d %H:%M"
+            )
+            arrive_time = max(current_time, requested_start)
+        depart_time = arrive_time + timedelta(minutes=stay_duration)
 
         arrive_time_str = arrive_time.strftime("%H:%M")
         depart_time_str = depart_time.strftime("%H:%M")
@@ -332,12 +339,18 @@ def calculate_day_timeline(
                 close_dt = close_dt + timedelta(days=1)
 
             if arrive_time < open_dt or depart_time > close_dt:
-                warnings.append({
+                warning = {
                     "type": "OUT_OF_OPERATING_HOURS",
                     "contentid": content_id,
                     "title": title,
                     "message": f"'{title}'의 영업시간({open_time_str}~{close_time_str}) 외에 일정이 잡혀있습니다. (방문예정: {arrive_time_str}~{depart_time_str})"
-                })
+                }
+                if arrive_time < open_dt:
+                    warning.update({
+                        "from_time": arrive_time_str,
+                        "to_time": open_time_str,
+                    })
+                warnings.append(warning)
         except Exception:
             pass
 
@@ -361,6 +374,8 @@ def calculate_day_timeline(
                     "type": "PEAK_CONGESTION_OVERLAP",
                     "contentid": content_id,
                     "title": title,
+                    "from_time": arrive_time_str,
+                    "to_time": peak_end_str,
                     "message": f"'{title}' 방문 예정 시간({arrive_time_str}~{depart_time_str})이 혼잡 피크 시각({peak_start_str}~{peak_end_str})과 겹칩니다. {congestion['message']}"
                 })
         except Exception:
@@ -865,6 +880,25 @@ def analyze_itinerary(itinerary_data: dict, db: Session, include_llm: bool = Tru
                     "updated_estimated_fare": warning.get("updated_estimated_fare") or 0,
                 },
             })
+        elif warning.get("type") in {
+            "PEAK_CONGESTION_OVERLAP",
+            "OUT_OF_OPERATING_HOURS",
+        } and warning.get("from_time") and warning.get("to_time"):
+            content_id = warning.get("contentid")
+            suggestion.update({
+                "suggestion_id": (
+                    f"time-day-{warning.get('day_number')}-{content_id}-"
+                    f"{str(warning.get('to_time')).replace(':', '')}"
+                ),
+                "operation": {
+                    "type": "CHANGE_VISIT_TIME",
+                    "day_number": warning.get("day_number"),
+                    "contentid": content_id,
+                    "from_time": warning.get("from_time"),
+                    "to_time": warning.get("to_time"),
+                    "reason": warning.get("type"),
+                },
+            })
         deterministic_suggestions.append(suggestion)
 
     # 와이어프레임 및 기존 API 통합 호환 객체 조립 후 리턴
@@ -971,6 +1005,10 @@ def calculate_total_estimated_fare(result: dict) -> int:
     )
 
 
+def count_warning(result: dict, warning_type: str) -> int:
+    return sum(1 for warning in result.get("warnings", []) if warning.get("type") == warning_type)
+
+
 def apply_transport_suggestion(payload: dict, db: Session) -> dict:
     """연속 구간의 이동수단만 변경하고 결정론적 분석 결과를 비교한다."""
     itinerary = deepcopy(payload.get("itinerary") or {})
@@ -1040,5 +1078,106 @@ def apply_transport_suggestion(payload: dict, db: Session) -> dict:
             "previous_estimated_fare": previous_fare,
             "updated_estimated_fare": updated_fare,
             "estimated_fare_delta": updated_fare - previous_fare,
+        },
+    }
+
+
+def apply_time_suggestion(payload: dict, db: Session) -> dict:
+    """한 장소의 시작 시각을 변경하고 운영시간·혼잡 경고를 다시 계산한다."""
+    itinerary = deepcopy(payload.get("itinerary") or {})
+    original_itinerary = deepcopy(payload.get("itinerary") or {})
+    day_number = int(payload.get("day_number") or 0)
+    contentid = payload.get("contentid")
+    from_time = str(payload.get("from_time") or "")
+    to_time = str(payload.get("to_time") or "")
+    suggestion_id = str(payload.get("suggestion_id") or "").strip()
+
+    target_day = next(
+        (day for day in itinerary.get("days", []) if day.get("day_number") == day_number),
+        None,
+    )
+    if target_day is None:
+        raise ValueError("시간을 변경할 여행 일차를 찾을 수 없습니다.")
+
+    target_place = next(
+        (place for place in target_day.get("places", []) if place.get("contentid") == contentid),
+        None,
+    )
+    if target_place is None:
+        raise ValueError("시간을 변경할 장소를 찾을 수 없습니다.")
+    if from_time == to_time:
+        raise ValueError("이미 적용된 방문 시작시간입니다.")
+
+    previous_result = analyze_itinerary(original_itinerary, db, include_llm=False)
+    previous_day = next(
+        (day for day in previous_result.get("timeline", []) if day.get("day_number") == day_number),
+        None,
+    )
+    previous_place = next(
+        (
+            place for place in (previous_day or {}).get("schedule", [])
+            if place.get("contentid") == contentid
+        ),
+        None,
+    )
+    if previous_place is None or previous_place.get("start_time") != from_time:
+        raise ValueError("일정의 현재 방문 시간이 제안 생성 시점과 다릅니다.")
+
+    target_place["visit_start_time"] = to_time
+    updated_result = analyze_itinerary(itinerary, db, include_llm=False)
+    updated_day = next(
+        (day for day in updated_result.get("timeline", []) if day.get("day_number") == day_number),
+        None,
+    )
+    updated_place = next(
+        (
+            place for place in (updated_day or {}).get("schedule", [])
+            if place.get("contentid") == contentid
+        ),
+        None,
+    )
+    if updated_place is None or updated_place.get("start_time") != to_time:
+        raise ValueError("이전 일정과 이동시간 때문에 제안된 방문 시간을 적용할 수 없습니다.")
+
+    previous_summary = previous_result["summary"]
+    updated_summary = updated_result["summary"]
+    previous_fare = calculate_total_estimated_fare(previous_result)
+    updated_fare = calculate_total_estimated_fare(updated_result)
+
+    return {
+        "applied_suggestion_id": suggestion_id,
+        "updated_itinerary": itinerary,
+        "previous_result": previous_result,
+        "updated_result": updated_result,
+        "comparison": {
+            "previous_score": previous_result["total_score"],
+            "updated_score": updated_result["total_score"],
+            "score_delta": updated_result["total_score"] - previous_result["total_score"],
+            "previous_distance_km": previous_summary["total_distance_km"],
+            "updated_distance_km": updated_summary["total_distance_km"],
+            "distance_saved_km": round(
+                previous_summary["total_distance_km"] - updated_summary["total_distance_km"], 1
+            ),
+            "previous_transit_minutes": previous_summary["total_transit_time_minutes"],
+            "updated_transit_minutes": updated_summary["total_transit_time_minutes"],
+            "transit_minutes_saved": (
+                previous_summary["total_transit_time_minutes"]
+                - updated_summary["total_transit_time_minutes"]
+            ),
+            "previous_estimated_fare": previous_fare,
+            "updated_estimated_fare": updated_fare,
+            "estimated_fare_delta": updated_fare - previous_fare,
+            "previous_operating_hours_warnings": count_warning(
+                previous_result, "OUT_OF_OPERATING_HOURS"
+            ),
+            "updated_operating_hours_warnings": count_warning(
+                updated_result, "OUT_OF_OPERATING_HOURS"
+            ),
+            "previous_congestion_warnings": count_warning(
+                previous_result, "PEAK_CONGESTION_OVERLAP"
+            ),
+            "updated_congestion_warnings": count_warning(
+                updated_result, "PEAK_CONGESTION_OVERLAP"
+            ),
         },
     }

@@ -212,6 +212,7 @@ function createSimulationRequest(
                 mapx: item.lng,
                 mapy: item.lat,
                 transport_mode_to_next: item.transportModeToNext,
+                visit_start_time: item.visitStartTime,
               },
             ]
           : [],

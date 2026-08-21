@@ -6,6 +6,7 @@ import Inner from "@/components/layout/Inner";
 import {
   applyReorderSuggestion,
   applyTransportSuggestion,
+  applyTimeSuggestion,
 } from "@/api/simulation";
 import { showToast } from "@/lib/utils/toast";
 import { usePlanScheduleStore } from "@/stores/usePlanScheduleStore";
@@ -44,6 +45,7 @@ export default function SuggestionDetail({
   const applyTransportResult = usePlanScheduleStore(
     (state) => state.applyTransportResult,
   );
+  const applyTimeResult = usePlanScheduleStore((state) => state.applyTimeResult);
   const [isApplying, setIsApplying] = useState(false);
   const suggestion = getSimulationSuggestions(result).find(
     (item) => item.id === suggestionId && item.type === type,
@@ -94,6 +96,25 @@ export default function SuggestionDetail({
           day: `day${operation.day_number}`,
           originContentId: operation.origin_contentid,
           transportMode: operation.to_mode,
+          request: response.updated_itinerary,
+          previousResult: response.previous_result,
+          updatedResult: response.updated_result,
+          comparison: response.comparison,
+          suggestionId: response.applied_suggestion_id,
+        });
+      } else if (operation.type === "CHANGE_VISIT_TIME") {
+        const response = await applyTimeSuggestion({
+          itinerary: analysisRequest,
+          suggestion_id: suggestion.id,
+          day_number: operation.day_number,
+          contentid: operation.contentid,
+          from_time: operation.from_time,
+          to_time: operation.to_time,
+        });
+        applyTimeResult({
+          day: `day${operation.day_number}`,
+          contentId: operation.contentid,
+          visitStartTime: operation.to_time,
           request: response.updated_itinerary,
           previousResult: response.previous_result,
           updatedResult: response.updated_result,

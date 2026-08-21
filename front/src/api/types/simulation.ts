@@ -7,6 +7,7 @@ export type SimulationPlaceRequest = {
   mapx: number;
   mapy: number;
   stay_duration_minutes?: number;
+  visit_start_time?: string | null;
   transport_mode_to_next?: TransportMode | null;
 };
 
@@ -124,6 +125,14 @@ export type SimulationSuggestion = {
         previous_estimated_fare: number;
         updated_estimated_fare: number;
       }
+    | {
+        type: "CHANGE_VISIT_TIME";
+        day_number: number;
+        contentid: number;
+        from_time: string;
+        to_time: string;
+        reason: "PEAK_CONGESTION_OVERLAP" | "OUT_OF_OPERATING_HOURS";
+      }
     | null;
 };
 
@@ -140,6 +149,10 @@ export type SimulationComparison = {
   previous_estimated_fare: number;
   updated_estimated_fare: number;
   estimated_fare_delta: number;
+  previous_operating_hours_warnings: number;
+  updated_operating_hours_warnings: number;
+  previous_congestion_warnings: number;
+  updated_congestion_warnings: number;
 };
 
 export type ApplyReorderSuggestionRequest = {
@@ -168,3 +181,14 @@ export type ApplyTransportSuggestionRequest = {
 };
 
 export type ApplyTransportSuggestionResponse = ApplyReorderSuggestionResponse;
+
+export type ApplyTimeSuggestionRequest = {
+  itinerary: SimulationRequest;
+  suggestion_id: string;
+  day_number: number;
+  contentid: number;
+  from_time: string;
+  to_time: string;
+};
+
+export type ApplyTimeSuggestionResponse = ApplyReorderSuggestionResponse;

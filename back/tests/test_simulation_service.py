@@ -251,5 +251,138 @@ class ApplyTransportSuggestionTest(unittest.TestCase):
             simulation_service.apply_transport_suggestion(payload, MagicMock())
 
 
+class ApplyTimeSuggestionTest(unittest.TestCase):
+    def setUp(self):
+        self.itinerary = {
+            "start_date": "2026-08-22",
+            "end_date": "2026-08-22",
+            "transport_mode": "car",
+            "days": [
+                {
+                    "day_number": 1,
+                    "date": "2026-08-22",
+                    "places": [
+                        {"sequence": 1, "contentid": 10, "title": "A"},
+                        {"sequence": 2, "contentid": 20, "title": "B"},
+                    ],
+                }
+            ],
+        }
+
+    @staticmethod
+    def analysis_result(start_time, score, warnings):
+        return {
+            "total_score": score,
+            "summary": {
+                "total_distance_km": 3.0,
+                "total_transit_time_minutes": 15,
+            },
+            "timeline": [
+                {
+                    "day_number": 1,
+                    "schedule": [
+                        {
+                            "contentid": 10,
+                            "start_time": start_time,
+                            "transit_to_next": {"estimated_fare": 0},
+                        },
+                        {"contentid": 20, "start_time": "14:30", "transit_to_next": None},
+                    ],
+                }
+            ],
+            "warnings": warnings,
+        }
+
+    def test_applies_visit_start_time_and_compares_warning_counts(self):
+        previous = self.analysis_result(
+            "09:00",
+            85,
+            [
+                {"type": "OUT_OF_OPERATING_HOURS"},
+                {"type": "PEAK_CONGESTION_OVERLAP"},
+            ],
+        )
+        updated = self.analysis_result("13:00", 100, [])
+        payload = {
+            "itinerary": self.itinerary,
+            "suggestion_id": "time-day-1-10-1300",
+            "day_number": 1,
+            "contentid": 10,
+            "from_time": "09:00",
+            "to_time": "13:00",
+        }
+
+        with patch.object(
+            simulation_service,
+            "analyze_itinerary",
+            side_effect=[previous, updated],
+        ) as analyze:
+            result = simulation_service.apply_time_suggestion(payload, MagicMock())
+
+        place = result["updated_itinerary"]["days"][0]["places"][0]
+        self.assertEqual(place["visit_start_time"], "13:00")
+        self.assertEqual(result["comparison"]["score_delta"], 15)
+        self.assertEqual(result["comparison"]["previous_operating_hours_warnings"], 1)
+        self.assertEqual(result["comparison"]["updated_operating_hours_warnings"], 0)
+        self.assertEqual(result["comparison"]["previous_congestion_warnings"], 1)
+        self.assertEqual(result["comparison"]["updated_congestion_warnings"], 0)
+        self.assertTrue(
+            all(call.kwargs["include_llm"] is False for call in analyze.call_args_list)
+        )
+
+    def test_rejects_stale_suggestion_time(self):
+        previous = self.analysis_result("10:00", 95, [])
+        payload = {
+            "itinerary": self.itinerary,
+            "suggestion_id": "stale",
+            "day_number": 1,
+            "contentid": 10,
+            "from_time": "09:00",
+            "to_time": "13:00",
+        }
+
+        with patch.object(simulation_service, "analyze_itinerary", return_value=previous):
+            with self.assertRaisesRegex(ValueError, "제안 생성 시점"):
+                simulation_service.apply_time_suggestion(payload, MagicMock())
+
+    def test_explicit_start_time_waits_but_never_overlaps_previous_route(self):
+        places = [
+            {
+                "sequence": 1,
+                "contentid": 10,
+                "title": "A",
+                "mapx": 127.0,
+                "mapy": 37.0,
+                "stay_duration_minutes": 60,
+            },
+            {
+                "sequence": 2,
+                "contentid": 20,
+                "title": "B",
+                "mapx": 127.1,
+                "mapy": 37.1,
+                "stay_duration_minutes": 60,
+                "visit_start_time": "09:30",
+            },
+        ]
+        route = {
+            "distance_km": 5.0,
+            "duration_minutes": 30,
+            "estimated_fare": 0,
+            "source": "cache",
+        }
+
+        with (
+            patch.object(simulation_service, "fetch_detail_intro", return_value={}),
+            patch.object(simulation_service, "get_route_info_with_cache", return_value=route),
+        ):
+            timeline, _, _, _ = simulation_service.calculate_day_timeline(
+                places, "2026-08-22", MagicMock(), "car"
+            )
+
+        self.assertEqual(timeline[0]["end_time"], "10:00")
+        self.assertEqual(timeline[1]["start_time"], "10:30")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -8,6 +8,8 @@ import type {
   ApplyReorderSuggestionResponse,
   ApplyTransportSuggestionRequest,
   ApplyTransportSuggestionResponse,
+  ApplyTimeSuggestionRequest,
+  ApplyTimeSuggestionResponse,
 } from "./types/simulation";
 
 export function analyzeSimulation(body: SimulationRequest) {
@@ -44,4 +46,11 @@ export function applyTransportSuggestion(
       body,
     },
   );
+}
+
+export function applyTimeSuggestion(body: ApplyTimeSuggestionRequest) {
+  return fetcher<ApplyTimeSuggestionResponse>("/api/simulation/apply-time", {
+    method: "POST",
+    body,
+  });
 }

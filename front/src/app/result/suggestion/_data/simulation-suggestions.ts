@@ -103,6 +103,27 @@ export function getSimulationSuggestionDetail(
       ],
     };
   }
+  if (operation?.type === "CHANGE_VISIT_TIME") {
+    const place = daySchedule.find(
+      (item) => item.contentid === operation.contentid,
+    );
+    const reason =
+      operation.reason === "PEAK_CONGESTION_OVERLAP"
+        ? "혼잡 시간 회피"
+        : "운영시간 준수";
+
+    return {
+      type: suggestion.type,
+      title: suggestion.title,
+      appliedDescription: `${place?.title ?? "방문 장소"} 시작시간 조정`,
+      changes: [
+        { label: "장소", value: place?.title ?? "방문 장소" },
+        { label: "변경 전", value: operation.from_time },
+        { label: "변경 후", value: operation.to_time, emphasized: true },
+      ],
+      effects: [{ label: "분석 기준", value: reason, tone: "blue" }],
+    };
+  }
 
   return {
     type: suggestion.type,

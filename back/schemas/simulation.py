@@ -44,6 +44,11 @@ class SimulationPlaceInput(BaseModel):
     mapx: Optional[float] = Field(None, description="경도")
     mapy: Optional[float] = Field(None, description="위도")
     stay_duration_minutes: Optional[int] = Field(None, description="체류 시간 (분)")
+    visit_start_time: Optional[str] = Field(
+        None,
+        pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$",
+        description="사용자가 지정한 방문 시작 시각 (HH:MM)",
+    )
     transport_mode_to_next: Optional[TransportMode] = Field(None, description="다음 장소로의 이동 수단. 없으면 최상위 transport_mode 사용")
 
 class SimulationDayInput(BaseModel):
@@ -144,6 +149,10 @@ class SimulationComparison(BaseModel):
     previous_estimated_fare: int
     updated_estimated_fare: int
     estimated_fare_delta: int
+    previous_operating_hours_warnings: int = 0
+    updated_operating_hours_warnings: int = 0
+    previous_congestion_warnings: int = 0
+    updated_congestion_warnings: int = 0
 
 
 class ApplyReorderSuggestionResponse(BaseModel):
@@ -165,6 +174,23 @@ class ApplyTransportSuggestionRequest(BaseModel):
 
 
 class ApplyTransportSuggestionResponse(BaseModel):
+    applied_suggestion_id: str
+    updated_itinerary: SimulationRequest
+    previous_result: SimulationResponse
+    updated_result: SimulationResponse
+    comparison: SimulationComparison
+
+
+class ApplyTimeSuggestionRequest(BaseModel):
+    itinerary: SimulationRequest
+    suggestion_id: str = Field(..., min_length=1)
+    day_number: int = Field(..., ge=1)
+    contentid: int
+    from_time: str = Field(..., pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+    to_time: str = Field(..., pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+
+
+class ApplyTimeSuggestionResponse(BaseModel):
     applied_suggestion_id: str
     updated_itinerary: SimulationRequest
     previous_result: SimulationResponse

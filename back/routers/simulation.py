@@ -6,12 +6,14 @@ from schemas.simulation import (
     SimulationRequest, SimulationResponse,
     ApplyReorderSuggestionRequest, ApplyReorderSuggestionResponse,
     ApplyTransportSuggestionRequest, ApplyTransportSuggestionResponse,
+    ApplyTimeSuggestionRequest, ApplyTimeSuggestionResponse,
 )
 from services.route_service import get_route_info_with_cache
 from services.simulation_service import (
     analyze_itinerary,
     apply_reorder_suggestion,
     apply_transport_suggestion,
+    apply_time_suggestion,
 )
 
 router = APIRouter(prefix="/api", tags=["Simulation"])
@@ -131,4 +133,25 @@ async def apply_transport(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"이동수단 변경 제안을 적용하는 중 오류가 발생했습니다: {str(exc)}",
+        ) from exc
+
+
+@router.post(
+    "/simulation/apply-time",
+    response_model=ApplyTimeSuggestionResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def apply_time(
+    request: ApplyTimeSuggestionRequest,
+    db: Session = Depends(get_db),
+):
+    """한 장소의 방문 시작시간을 변경하고 운영시간·혼잡도를 다시 분석한다."""
+    try:
+        return apply_time_suggestion(request.model_dump(), db)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"시간 조정 제안을 적용하는 중 오류가 발생했습니다: {str(exc)}",
         ) from exc

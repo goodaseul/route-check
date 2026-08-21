@@ -119,6 +119,16 @@ export default function AppliedSuggestionResult({
                   label="예상 교통비"
                   before={`${comparison.previous_estimated_fare.toLocaleString()}원`}
                   after={`${comparison.updated_estimated_fare.toLocaleString()}원`}
+                />
+                <ComparisonRow
+                  label="운영시간 경고"
+                  before={`${comparison.previous_operating_hours_warnings ?? 0}건`}
+                  after={`${comparison.updated_operating_hours_warnings ?? 0}건`}
+                />
+                <ComparisonRow
+                  label="혼잡시간 경고"
+                  before={`${comparison.previous_congestion_warnings ?? 0}건`}
+                  after={`${comparison.updated_congestion_warnings ?? 0}건`}
                   isLast
                 />
               </dl>

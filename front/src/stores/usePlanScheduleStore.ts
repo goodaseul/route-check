@@ -19,6 +19,7 @@ export type ScheduleItem = {
   lat?: number;
   lng?: number;
   transportModeToNext?: TransportMode;
+  visitStartTime?: string;
 };
 
 type PlanScheduleState = {
@@ -53,6 +54,16 @@ type PlanScheduleState = {
     day: string;
     originContentId: number;
     transportMode: TransportMode;
+    request: SimulationRequest;
+    previousResult: SimulationResponse;
+    updatedResult: SimulationResponse;
+    comparison: SimulationComparison;
+    suggestionId: string;
+  }) => void;
+  applyTimeResult: (params: {
+    day: string;
+    contentId: number;
+    visitStartTime: string;
     request: SimulationRequest;
     previousResult: SimulationResponse;
     updatedResult: SimulationResponse;
@@ -175,6 +186,31 @@ export const usePlanScheduleStore = create<PlanScheduleState>()(
             [day]: (state.schedules[day] ?? []).map((item) =>
               item.contentId === originContentId
                 ? { ...item, transportModeToNext: transportMode }
+                : item,
+            ),
+          },
+          analysisRequest: request,
+          previousAnalysisResult: previousResult,
+          analysisResult: updatedResult,
+          analysisComparison: comparison,
+          lastAppliedSuggestionId: suggestionId,
+        })),
+      applyTimeResult: ({
+        day,
+        contentId,
+        visitStartTime,
+        request,
+        previousResult,
+        updatedResult,
+        comparison,
+        suggestionId,
+      }) =>
+        set((state) => ({
+          schedules: {
+            ...state.schedules,
+            [day]: (state.schedules[day] ?? []).map((item) =>
+              item.contentId === contentId
+                ? { ...item, visitStartTime }
                 : item,
             ),
           },
