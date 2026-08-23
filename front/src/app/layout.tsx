@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import GoogleAuthProvider from "@/providers/GoogleOAuthProvider";
 import QueryProvider from "@/providers/QueryProvider";
 import { Toaster } from "react-hot-toast";
 import StoreHydration from "@/providers/StoreHydration";
@@ -38,11 +37,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col justify-start items-center">
         <div className="w-full max-w-container min-h-full flex flex-col">
           <QueryProvider>
-            <GoogleAuthProvider>
-              <StoreHydration />
-              {children}
-              <Toaster position="bottom-center" />
-            </GoogleAuthProvider>
+            <StoreHydration />
+            {children}
+            <Toaster position="bottom-center" />
           </QueryProvider>
         </div>
       </body>
