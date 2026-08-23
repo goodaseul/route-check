@@ -1,6 +1,7 @@
 "use client";
 
 import { formatDateRange } from "@/components/common/date-input/date-format";
+import { usePlanScheduleStore } from "@/stores/usePlanScheduleStore";
 import type { DateRange } from "@daypicker/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -15,8 +16,12 @@ export function usePlanDate() {
   const [dateRange, setDateRange] = useState<DateRange>();
   const canContinue = Boolean(selectedTransport && dateRange?.from);
 
+  const resetSchedules = usePlanScheduleStore((state) => state.resetSchedules);
+
   const goToSchedule = () => {
     if (!selectedTransport || !dateRange?.from) return;
+
+    resetSchedules();
 
     const searchParams = new URLSearchParams({
       transport: selectedTransport,
