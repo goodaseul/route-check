@@ -12,7 +12,13 @@ export default function page() {
     <>
       <Header />
       <Inner>
-        <main className="pt-16 pb-10">
+        <main
+          className=" w-full
+            bg-[url('/images/dashboard/bg.png')]
+            bg-size-[100%_auto]
+            bg-position-[center_90%]
+            "
+        >
           <section className="text-center flex flex-col gap-3">
             <Title>
               내 여행 계획, <br />
