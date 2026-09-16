@@ -13,6 +13,8 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import SortableScheduleItem from "./SortableScheduleItem";
 import { useSchedulePage } from "../_hooks/useSchedulePage";
 
@@ -25,6 +27,7 @@ export default function SchedulePageClient({
   date,
   transport,
 }: SchedulePageClientProps) {
+  const router = useRouter();
   const {
     dateRange,
     selectedDay,
@@ -39,6 +42,37 @@ export default function SchedulePageClient({
     handleDragEnd,
     removeSchedule,
   } = useSchedulePage(date, transport);
+
+  useEffect(() => {
+    if (!dateRange) {
+      router.replace("/plan/date");
+    }
+  }, [dateRange, router]);
+
+  if (!dateRange) {
+    return (
+      <div className="flex min-h-dvh flex-col">
+        <MenuTitle onAction={() => router.push("/plan/date")}>
+          일정 구성
+        </MenuTitle>
+        <Inner>
+          <div className="py-20 flex flex-col items-center justify-center text-center">
+            <p className="text-h3 font-semibold text-semantic-800">
+              여행 일정이 선택되지 않았어요
+            </p>
+            <p className="mt-2 text-b2 text-semantic-600">
+              먼저 여행 날짜와 이동 수단을 선택해 주세요.
+            </p>
+            <div className="mt-8 w-full max-w-xs">
+              <Button buttonBg="blue" onClick={() => router.push("/plan/date")}>
+                여행 날짜 선택하기
+              </Button>
+            </div>
+          </div>
+        </Inner>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-dvh flex-col">

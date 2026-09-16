@@ -11,6 +11,7 @@ services:
       - ./back:/app
     environment:
       - APP_ENV=${APP_ENV:-development}
+      - PORT=8000
       - TOUR_API_DECODE_KEY=${TOUR_API_DECODE_KEY}
       - KAKAO_REST_API_KEY=${KAKAO_REST_API_KEY:-}
       - TMAP_API_KEY=${TMAP_API_KEY:-}
@@ -26,6 +27,11 @@ services:
     build:
       context: ./front
       dockerfile: Dockerfile
+      args:
+        BACKEND_HOST: backend
+        BACKEND_PORT: ${BACKEND_PORT:-8000}
+        NEXT_PUBLIC_KAKAO_MAP_KEY: ${NEXT_PUBLIC_KAKAO_MAP_KEY:-}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
     container_name: routecheck-frontend
     ports:
       - "3000:3000"
@@ -36,8 +42,9 @@ services:
       - /app/.next
     environment:
       - NEXT_PUBLIC_KAKAO_MAP_KEY=${NEXT_PUBLIC_KAKAO_MAP_KEY}
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-}
       - BACKEND_HOST=backend
-      - BACKEND_PORT=${BACKEND_PORT}
+      - BACKEND_PORT=${BACKEND_PORT:-8000}
     depends_on:
       - backend
     networks:

@@ -2,8 +2,9 @@
 
 import ConfirmDialog from "@/components/common/dialog/ConfirmDialog";
 import { showToast } from "@/lib/utils/toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
+import { usePlanScheduleStore } from "@/stores/usePlanScheduleStore";
 import type { RoutePosition } from "./RouteMap";
 import RoutePreviewView from "./RoutePreviewView";
 import SaveResultSheet from "./SaveResultSheet";
@@ -17,15 +18,27 @@ type RoutePreviewProps = {
 
 export default function RoutePreview({ date, ...props }: RoutePreviewProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const analysisRequest = usePlanScheduleStore((state) => state.analysisRequest);
+  const invalidateAnalysis = usePlanScheduleStore(
+    (state) => state.invalidateAnalysis,
+  );
+
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSaveSheetOpen, setIsSaveSheetOpen] = useState(false);
-  const suggestionParams = new URLSearchParams();
-  if (date) suggestionParams.set("date", date);
-  const suggestionQuery = suggestionParams.toString();
+
+  const transport =
+    searchParams.get("transport") ?? analysisRequest?.transport_mode ?? "car";
+
+  const navParams = new URLSearchParams();
+  if (date) navParams.set("date", date);
+  if (transport) navParams.set("transport", transport);
+  const navQuery = navParams.toString();
 
   const handleContinue = () => {
     const params = new URLSearchParams();
     if (date) params.set("date", date);
+    if (transport) params.set("transport", transport);
     params.set("mode", "confirmed");
 
     router.replace(`/result/summary?${params.toString()}`);
@@ -40,14 +53,20 @@ export default function RoutePreview({ date, ...props }: RoutePreviewProps) {
   }, []);
 
   const handleEditSchedule = () => {
+    invalidateAnalysis();
     router.push(
-      `/plan/schedule${suggestionQuery ? `?${suggestionQuery}` : ""}`,
+      `/plan/schedule${navQuery ? `?${navQuery}` : ""}`,
     );
   };
 
-  const handleSave = () => {
+  const handleSavePdf = () => {
     closeSaveSheet();
-    showToast("저장이 완료됐어요!");
+    showToast("PDF 저장 기능은 현재 준비 중이에요.");
+  };
+
+  const handleSaveImage = () => {
+    closeSaveSheet();
+    showToast("이미지 저장 기능은 현재 준비 중이에요.");
   };
 
   return (
@@ -58,7 +77,7 @@ export default function RoutePreview({ date, ...props }: RoutePreviewProps) {
         onEditSchedule={() => setIsEditDialogOpen(true)}
         onViewSuggestion={() =>
           router.push(
-            `/result/suggestion${suggestionQuery ? `?${suggestionQuery}` : ""}`,
+            `/result/suggestion${navQuery ? `?${navQuery}` : ""}`,
           )
         }
         onSave={() => setIsSaveSheetOpen(true)}
@@ -81,8 +100,8 @@ export default function RoutePreview({ date, ...props }: RoutePreviewProps) {
       <SaveResultSheet
         open={isSaveSheetOpen}
         onClose={closeSaveSheet}
-        onSavePdf={handleSave}
-        onSaveImage={handleSave}
+        onSavePdf={handleSavePdf}
+        onSaveImage={handleSaveImage}
       />
     </>
   );

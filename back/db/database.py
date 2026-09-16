@@ -1,6 +1,7 @@
 import os
 import logging
 from dotenv import load_dotenv
+from core.logging_safety import install_secret_redaction
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
@@ -8,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables from .env
 load_dotenv()
+install_secret_redaction()
 
 APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
 IS_LOCAL_ENV = APP_ENV in {"development", "dev", "local", "test"}
@@ -42,7 +44,7 @@ else:
             pass
     except Exception as exc:
         logger.error("Supabase PostgreSQL connection failed in %s.", APP_ENV)
-        raise RuntimeError("Unable to connect to Supabase PostgreSQL.") from exc
+        raise RuntimeError("Unable to connect to Supabase PostgreSQL.") from None
     logger.info("Database environment=%s: connected to Supabase PostgreSQL", APP_ENV)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

@@ -10,13 +10,14 @@ export type Transport = "car" | "public";
 
 export function usePlanDate() {
   const router = useRouter();
+  const resetSchedules = usePlanScheduleStore(
+    (state) => state.resetSchedules,
+  );
   const [selectedTransport, setSelectedTransport] = useState<Transport | null>(
     null,
   );
   const [dateRange, setDateRange] = useState<DateRange>();
   const canContinue = Boolean(selectedTransport && dateRange?.from);
-
-  const resetSchedules = usePlanScheduleStore((state) => state.resetSchedules);
 
   const goToSchedule = () => {
     if (!selectedTransport || !dateRange?.from) return;

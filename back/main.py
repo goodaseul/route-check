@@ -1,3 +1,10 @@
+import os
+from dotenv import load_dotenv
+from core.logging_safety import install_secret_redaction
+
+load_dotenv()
+install_secret_redaction()
+
 from contextlib import asynccontextmanager
 import logging
 from fastapi import FastAPI
@@ -22,6 +29,8 @@ logging.basicConfig(
     format='%(asctime)s [%(levelname)s] %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
@@ -49,7 +58,7 @@ async def lifespan(app: FastAPI):
                 )
                 db.add(default_admin)
                 db.commit()
-                logger.info("Default superadmin seeded successfully (ID: admin / PW: admin1234).")
+                logger.info("Default superadmin seeded successfully.")
         finally:
             db.close()
     except Exception as e:
@@ -66,9 +75,23 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+default_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+extra_origins = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+# 중복 제거 및 순서 보존
+allowed_origins = list(dict.fromkeys(default_origins + extra_origins))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8000", "http://127.0.0.1:8000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
