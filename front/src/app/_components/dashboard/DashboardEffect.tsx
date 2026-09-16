@@ -4,13 +4,8 @@ import styles from "./DashboardEffect.module.css";
 export default function DashboardEffect() {
   return (
     <section
-      className="
-            relative mt-4 aspect-4/3 w-full
-            bg-[url('/images/dashboard/bg.png')]
-            bg-size-[100%_auto]
-            bg-center
-            bg-no-repeat
-        "
+      className="pt-16 pb-10    
+            mt-4 h-76 relative"
     >
       <div className="absolute left-[11.667%] top-[13.333%] w-[20.833%]">
         <Image
