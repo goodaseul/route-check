@@ -1,4 +1,5 @@
-from pydantic import BaseModel, Field
+from datetime import datetime
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import List, Optional, Dict, Any, Literal
 
 TransportMode = Literal["car", "taxi", "public", "walk", "bicycle"]
@@ -9,8 +10,8 @@ TransportMode = Literal["car", "taxi", "public", "walk", "bicycle"]
 
 class LocationPoint(BaseModel):
     contentid: int = Field(..., description="장소 고유 ID")
-    mapx: Optional[float] = Field(None, description="경도 (Longitude)")
-    mapy: Optional[float] = Field(None, description="위도 (Latitude)")
+    mapx: Optional[float] = Field(None, ge=-180.0, le=180.0, description="경도 (Longitude: -180 ~ 180)")
+    mapy: Optional[float] = Field(None, ge=-90.0, le=90.0, description="위도 (Latitude: -90 ~ 90)")
 
 class TransitInfoRequest(BaseModel):
     origin: LocationPoint = Field(..., description="출발지 정보")
@@ -41,8 +42,8 @@ class SimulationPlaceInput(BaseModel):
     sequence: int = Field(..., description="방문 순서 (1부터 시작)")
     contentid: int = Field(..., description="장소 고유 ID")
     title: Optional[str] = Field(None, description="장소명")
-    mapx: Optional[float] = Field(None, description="경도")
-    mapy: Optional[float] = Field(None, description="위도")
+    mapx: Optional[float] = Field(None, ge=-180.0, le=180.0, description="경도 (Longitude: -180 ~ 180)")
+    mapy: Optional[float] = Field(None, ge=-90.0, le=90.0, description="위도 (Latitude: -90 ~ 90)")
     stay_duration_minutes: Optional[int] = Field(None, description="체류 시간 (분)")
     visit_start_time: Optional[str] = Field(
         None,
@@ -51,16 +52,73 @@ class SimulationPlaceInput(BaseModel):
     )
     transport_mode_to_next: Optional[TransportMode] = Field(None, description="다음 장소로의 이동 수단. 없으면 최상위 transport_mode 사용")
 
+
 class SimulationDayInput(BaseModel):
-    day_number: int = Field(..., description="여행 일차 (1, 2, ...)")
+    day_number: int = Field(..., ge=1, description="여행 일차 (1, 2, ...)")
     date: str = Field(..., description="해당 일차 날짜 (YYYY-MM-DD)")
-    places: List[SimulationPlaceInput] = Field(..., description="해당 일차의 방문 장소 리스트 (순서 정렬됨)")
+    places: List[SimulationPlaceInput] = Field(default_factory=list, description="해당 일차의 방문 장소 리스트 (순서 정렬됨)")
+
+    @field_validator("date")
+    @classmethod
+    def validate_day_date(cls, v: str) -> str:
+        try:
+            datetime.strptime(v, "%Y-%m-%d")
+        except (ValueError, TypeError):
+            raise ValueError("일자 날짜는 YYYY-MM-DD 형식의 유효한 날짜여야 합니다.")
+        return v
+
 
 class SimulationRequest(BaseModel):
     start_date: str = Field(..., description="여행 시작일 (YYYY-MM-DD)")
     end_date: str = Field(..., description="여행 종료일 (YYYY-MM-DD)")
     transport_mode: TransportMode = Field(default="car", description="전체 일정의 기본 이동 수단")
-    days: List[SimulationDayInput] = Field(..., description="일자별 상세 일정 정보")
+    days: List[SimulationDayInput] = Field(..., min_length=1, description="일자별 상세 일정 정보")
+
+    @field_validator("start_date", "end_date")
+    @classmethod
+    def validate_date_format(cls, v: str) -> str:
+        try:
+            datetime.strptime(v, "%Y-%m-%d")
+        except (ValueError, TypeError):
+            raise ValueError("날짜는 YYYY-MM-DD 형식의 유효한 날짜여야 합니다.")
+        return v
+
+    @model_validator(mode="after")
+    def validate_request_logic(self) -> "SimulationRequest":
+        try:
+            start_dt = datetime.strptime(self.start_date, "%Y-%m-%d")
+            end_dt = datetime.strptime(self.end_date, "%Y-%m-%d")
+        except Exception:
+            return self
+
+        if start_dt > end_dt:
+            raise ValueError("여행 시작일은 종료일보다 이전이거나 같아야 합니다.")
+
+        total_places = sum(len(day.places) for day in self.days)
+        if total_places == 0:
+            raise ValueError("여행 일정에 최소 한 곳 이상의 방문 장소가 포함되어야 합니다.")
+
+        for day in self.days:
+            try:
+                day_dt = datetime.strptime(day.date, "%Y-%m-%d")
+                if day_dt < start_dt or day_dt > end_dt:
+                    raise ValueError(
+                        f"DAY {day.day_number}의 날짜({day.date})가 여행 기간({self.start_date} ~ {self.end_date})을 벗어났습니다."
+                    )
+            except ValueError as e:
+                if "여행 기간" in str(e):
+                    raise
+                pass
+
+            for place in day.places:
+                if place.mapx is None or place.mapy is None:
+                    # places_cache에 있는지 확인
+                    from services.simulation_service import places_cache
+                    cached = places_cache.get(place.contentid) or {}
+                    if not cached.get("mapx") or not cached.get("mapy"):
+                        raise ValueError(f"장소 '{place.title or place.contentid}'의 좌표(mapx, mapy) 정보가 누락되었습니다.")
+
+        return self
 
 
 # 분석 응답 스키마
@@ -127,6 +185,7 @@ class SimulationResponse(BaseModel):
     status_message: Optional[str] = Field(None, description="AI 요약 상태 메시지")
     analysis_summary: Optional[Dict[str, str]] = Field(None, description="AI가 가공한 누적 거리 및 이동 시간 요약")
     suggestions: Optional[List[Dict[str, Any]]] = Field(None, description="AI 개선 제안 목록 (Applied Route 포함)")
+    inter_day_transits: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="날짜 간 이동 정보")
 
 
 class ApplyReorderSuggestionRequest(BaseModel):

@@ -1,8 +1,11 @@
 import math
+import logging
 import os
 import requests
 from sqlalchemy.orm import Session
 from db.models import RouteDistanceCache, PlacesCache
+
+logger = logging.getLogger(__name__)
 
 KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY") or os.getenv("NEXT_PUBLIC_KAKAO_MAP_KEY")
 TMAP_API_KEY = os.getenv("TMAP_API_KEY")
@@ -21,8 +24,11 @@ def call_kakao_directions(lon1: float, lat1: float, lon2: float, lat2: float) ->
         "destination": f"{lon2},{lat2}",
         "priority": "RECOMMEND"
     }
-    resp = requests.get(url, headers=headers, params=params, timeout=5)
-    resp.raise_for_status()
+    try:
+        resp = requests.get(url, headers=headers, params=params, timeout=5)
+        resp.raise_for_status()
+    except Exception as err:
+        raise RuntimeError(f"Kakao API request failed ({type(err).__name__})") from None
     data = resp.json()
     if "routes" in data and len(data["routes"]) > 0:
         route = data["routes"][0]
@@ -58,8 +64,11 @@ def call_tmap_directions(lon1: float, lat1: float, lon2: float, lat2: float) -> 
         "resCoordType": "WGS84GEO",
         "searchOption": "0"
     }
-    resp = requests.post(url, headers=headers, json=body, timeout=5)
-    resp.raise_for_status()
+    try:
+        resp = requests.post(url, headers=headers, json=body, timeout=5)
+        resp.raise_for_status()
+    except Exception as err:
+        raise RuntimeError(f"TMap API request failed ({type(err).__name__})") from None
     data = resp.json()
     if "features" in data and len(data["features"]) > 0:
         properties = data["features"][0]["properties"]
@@ -86,8 +95,11 @@ def call_odsay_transit(lon1: float, lat1: float, lon2: float, lat2: float) -> di
         "EX": str(lon2),
         "EY": str(lat2)
     }
-    resp = requests.get(url, params=params, timeout=5)
-    resp.raise_for_status()
+    try:
+        resp = requests.get(url, params=params, timeout=5)
+        resp.raise_for_status()
+    except Exception as err:
+        raise RuntimeError(f"ODsay API request failed ({type(err).__name__})") from None
     data = resp.json()
     if "result" in data and "path" in data["result"] and len(data["result"]["path"]) > 0:
         path_info = data["result"]["path"][0]["info"]
@@ -136,7 +148,7 @@ def get_route_info_with_cache(
                 "source": "cache"
             }
     except Exception as cache_err:
-        print(f"[Cache Query Error] Failed to fetch cache: {cache_err}")
+        logger.warning("Route cache query failed: %s", type(cache_err).__name__)
 
     # API 호출 및 계산
     distance_km = 0.0
@@ -156,7 +168,7 @@ def get_route_info_with_cache(
                 api_success = True
                 data_source = "api"
             except Exception as e:
-                print(f"[Map API Warning] Kakao Directions API failed: {e}. Trying TMap or Heuristics.")
+                logger.warning("Kakao Directions API failed: %s; trying fallback", type(e).__name__)
 
         # TMap Directions API 시도
         if not api_success and TMAP_API_KEY:
@@ -168,7 +180,7 @@ def get_route_info_with_cache(
                 api_success = True
                 data_source = "api"
             except Exception as e:
-                print(f"[Map API Warning] TMap Directions API failed: {e}. Trying Heuristics.")
+                logger.warning("TMap Directions API failed: %s; using heuristics", type(e).__name__)
 
         # 모두 실패 시 추정 연산 (Heuristics)
         if not api_success:
@@ -190,7 +202,7 @@ def get_route_info_with_cache(
                 api_success = True
                 data_source = "api"
             except Exception as e:
-                print(f"[Map API Warning] ODSay Transit API failed: {e}. Trying Heuristics.")
+                logger.warning("ODSay Transit API failed: %s; using heuristics", type(e).__name__)
 
         # 실패 시 추정 연산
         if not api_success:
@@ -230,7 +242,7 @@ def get_route_info_with_cache(
             db.commit()
         except Exception as cache_err:
             db.rollback()
-            print(f"[Cache Save Warning] Failed to save route cache: {cache_err}")
+            logger.warning("Route cache save failed: %s", type(cache_err).__name__)
 
     return {
         "distance_km": distance_km,

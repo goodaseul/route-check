@@ -10,8 +10,10 @@ ADMIN_SESSION_COOKIE = "route_check_admin_session"
 
 
 def get_jwt_secret() -> str:
-    # 디폴트 시크릿 키는 복잡한 기본 문자열 제공
-    return os.environ.get("JWT_SECRET", "super-secret-jwt-key-for-route-check-admin-1234567890")
+    secret = os.environ.get("JWT_SECRET")
+    if not secret:
+        raise RuntimeError("JWT_SECRET is required for token operations.")
+    return secret
 
 
 def get_jwt_expire_hours() -> int:

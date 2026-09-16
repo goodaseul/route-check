@@ -1,4 +1,5 @@
 import os
+import logging
 import re
 import json
 import requests
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 from services.route_service import estimate_transit_info, calculate_haversine_distance, get_route_info_with_cache
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 API_KEY = os.getenv("TOUR_API_DECODE_KEY")
 BASE_URL = "https://apis.data.go.kr/B551011/KorService2"
 
@@ -41,7 +43,7 @@ if os.path.exists(CSV_PATH):
         # contentid를 key로 하는 딕셔너리로 변환
         places_cache = df.set_index('contentid').to_dict(orient='index')
     except Exception as e:
-        print(f"Error loading main CSV dataset: {e}")
+        logger.error("Error loading main CSV dataset: %s", type(e).__name__)
 
 
 def load_detail_cache() -> dict:
@@ -61,6 +63,10 @@ def save_detail_cache(cache: dict):
             json.dump(cache, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
+
+
+_tour_session = requests.Session()
+_tour_session.headers.update({"User-Agent": "Mozilla/5.0 (compatible; RouteCheck/1.0)"})
 
 
 def fetch_detail_intro(content_id: int, content_type_id: str) -> dict:
@@ -87,7 +93,7 @@ def fetch_detail_intro(content_id: int, content_type_id: str) -> dict:
         "pageNo": 1
     }
     try:
-        response = requests.get(url, params=params, timeout=5)
+        response = _tour_session.get(url, params=params, timeout=10)
         if response.status_code == 200:
             res_json = response.json()
             if 'response' in res_json:
@@ -106,7 +112,7 @@ def fetch_detail_intro(content_id: int, content_type_id: str) -> dict:
                         save_detail_cache(cache)
                         return detail
     except Exception as e:
-        print(f"Error fetching detailIntro2 for {content_id}: {e}")
+        logger.warning("TourAPI detailIntro2 failed for contentid=%s: %s", content_id, type(e).__name__)
 
     return {}
 
@@ -744,6 +750,55 @@ def analyze_itinerary(itinerary_data: dict, db: Session, include_llm: bool = Tru
             "places": places
         })
 
+    inter_day_transits = []
+    # 유효한 일자 간 이동 계산 (숙소 정보가 없으므로 Day N 마지막 장소 -> Day N+1 첫 장소를 근사치로 활용)
+    non_empty_days = [d for d in days if d.get("places")]
+    for idx in range(len(non_empty_days) - 1):
+        prev_day = non_empty_days[idx]
+        next_day = non_empty_days[idx + 1]
+        origin = prev_day["places"][-1]
+        destination = next_day["places"][0]
+
+        origin_id = origin.get("contentid")
+        dest_id = destination.get("contentid")
+        origin_info = places_cache.get(origin_id, {})
+        dest_info = places_cache.get(dest_id, {})
+
+        orig_mapx = origin.get("mapx") or origin_info.get("mapx")
+        orig_mapy = origin.get("mapy") or origin_info.get("mapy")
+        dest_mapx = destination.get("mapx") or dest_info.get("mapx")
+        dest_mapy = destination.get("mapy") or dest_info.get("mapy")
+
+        mode = origin.get("transport_mode_to_next") or default_transport_mode
+
+        if orig_mapx and orig_mapy and dest_mapx and dest_mapy:
+            route_res = get_route_info_with_cache(
+                db,
+                origin_id=origin_id, lat1=float(orig_mapy), lon1=float(orig_mapx),
+                dest_id=dest_id, lat2=float(dest_mapy), lon2=float(dest_mapx),
+                transport_mode=mode
+            )
+            inter_dist = route_res.get("distance_km", 0.0)
+            inter_dur = route_res.get("duration_minutes", 0)
+            inter_fare = route_res.get("estimated_fare") or 0
+
+            total_distance += inter_dist
+            total_transit_time += inter_dur
+            total_duration_minutes += inter_dur
+
+            inter_transit_info = {
+                "from_day": prev_day.get("day_number"),
+                "to_day": next_day.get("day_number"),
+                "origin_contentid": origin_id,
+                "destination_contentid": dest_id,
+                "distance_km": inter_dist,
+                "duration_minutes": inter_dur,
+                "estimated_fare": inter_fare,
+                "mode": mode,
+                "source": route_res.get("source")
+            }
+            inter_day_transits.append(inter_transit_info)
+
     # --- 점수 산출 로직 (패널티 감점 방식) ---
     base_score = 100
     deductions = 0
@@ -759,7 +814,7 @@ def analyze_itinerary(itinerary_data: dict, db: Session, include_llm: bool = Tru
                 "message": f"DAY {dm['day_number']} 일정이 매우 촘촘합니다. (총 소요 예상: {int(dm['duration']/60)}시간 {dm['duration']%60}분)"
             })
 
-    # 2. 과도한 이동거리 감점 (하루 이동거리가 40km를 초과할 경우 감점)
+    # 2. 과도한 이동거리 감점 (하루 이동거리 또는 날짜 간 이동거리가 40km를 초과할 경우 감점)
     for dm in day_metrics:
         if dm["distance"] > 40.0:
             excess_dist = dm["distance"] - 40.0
@@ -768,6 +823,16 @@ def analyze_itinerary(itinerary_data: dict, db: Session, include_llm: bool = Tru
                 "type": "EXCESSIVE_DISTANCE",
                 "day_number": dm["day_number"],
                 "message": f"DAY {dm['day_number']}의 총 이동 거리({round(dm['distance'], 1)}km)가 너무 멉니다. 인접한 장소들로 재배치하는 것을 추천합니다."
+            })
+
+    for it in inter_day_transits:
+        if it["distance_km"] > 40.0:
+            excess_dist = it["distance_km"] - 40.0
+            deductions += min(20, int(excess_dist / 5) * 2)
+            all_warnings.append({
+                "type": "EXCESSIVE_DISTANCE",
+                "day_number": it["from_day"],
+                "message": f"DAY {it['from_day']}에서 DAY {it['to_day']}로의 이동 거리({round(it['distance_km'], 1)}km)가 너무 멉니다. 인접한 지역 일정 구성을 추천합니다."
             })
 
     # 3. 휴무일/영업시간 외 방문 건수별 감점
@@ -880,7 +945,7 @@ def analyze_itinerary(itinerary_data: dict, db: Session, include_llm: bool = Tru
             if isinstance(candidate, str) and candidate.strip():
                 llm_status_description = candidate.strip()
         except Exception as e:
-            print(f"[OpenAI API Error] Failed to call OpenAI: {e}")
+            logger.warning("OpenAI request failed: %s", type(e).__name__)
 
     # 추천 역시 규칙 엔진의 검증된 값만 사용한다. LLM 출력은 병합하지 않는다.
     deterministic_suggestions = []
@@ -1034,6 +1099,7 @@ def analyze_itinerary(itinerary_data: dict, db: Session, include_llm: bool = Tru
             or (
                 day_place_counts
                 and max(day_place_counts) - min(day_place_counts) >= 2
+                and sum(day_place_counts) >= 4
             )
         )
     )
@@ -1073,7 +1139,8 @@ def analyze_itinerary(itinerary_data: dict, db: Session, include_llm: bool = Tru
             "total_places": f"{total_places_count}곳",
             "transport_mode": default_transport_mode
         },
-        "suggestions": deterministic_suggestions
+        "suggestions": deterministic_suggestions,
+        "inter_day_transits": inter_day_transits
     }
 
 
@@ -1145,11 +1212,16 @@ def apply_reorder_suggestion(payload: dict, db: Session) -> dict:
 
 
 def calculate_total_estimated_fare(result: dict) -> int:
-    return sum(
+    intra_fare = sum(
         int((place.get("transit_to_next") or {}).get("estimated_fare") or 0)
         for day in result.get("timeline", [])
         for place in day.get("schedule", [])
     )
+    inter_fare = sum(
+        int((t or {}).get("estimated_fare") or 0)
+        for t in result.get("inter_day_transits", [])
+    )
+    return intra_fare + inter_fare
 
 
 def count_warning(result: dict, warning_type: str) -> int:
@@ -1358,14 +1430,16 @@ def optimize_entire_itinerary(itinerary: dict) -> None:
                 destination_day.setdefault("places", []).append(moved_place)
 
     # 날짜별 개수 차이가 1 이하가 될 때까지 과밀 일자의 마지막 장소를 이동한다.
-    while days:
-        fullest = max(days, key=lambda day: len(day.get("places", [])))
-        emptiest = min(days, key=lambda day: len(day.get("places", [])))
-        if len(fullest.get("places", [])) - len(emptiest.get("places", [])) <= 1:
-            break
-        moved_place = fullest["places"].pop()
-        moved_place.pop("visit_start_time", None)
-        emptiest.setdefault("places", []).append(moved_place)
+    total_places = sum(len(d.get("places", [])) for d in days)
+    if total_places >= 4:
+        while days:
+            fullest = max(days, key=lambda day: len(day.get("places", [])))
+            emptiest = min(days, key=lambda day: len(day.get("places", [])))
+            if len(fullest.get("places", [])) - len(emptiest.get("places", [])) <= 1:
+                break
+            moved_place = fullest["places"].pop()
+            moved_place.pop("visit_start_time", None)
+            emptiest.setdefault("places", []).append(moved_place)
 
     # 각 날짜 안에서는 첫 장소를 고정한 근거리 순서로 정렬한다.
     for day in days:

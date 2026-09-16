@@ -21,8 +21,8 @@ export default function SaveResultSheet({
   if (!open) return null;
 
   const actions = [
-    { label: "PDF로 저장하기", onClick: onSavePdf },
-    { label: "이미지로 저장하기", onClick: onSaveImage },
+    { label: "PDF로 저장하기 (준비 중)", onClick: onSavePdf },
+    { label: "이미지로 저장하기 (준비 중)", onClick: onSaveImage },
   ];
 
   return (

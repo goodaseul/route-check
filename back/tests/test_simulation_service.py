@@ -3,6 +3,7 @@ import os
 import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+import requests
 
 from services import simulation_service
 
@@ -495,6 +496,231 @@ class ApplyTripSuggestionTest(unittest.TestCase):
 
         counts = [len(day["places"]) for day in result["updated_itinerary"]["days"]]
         self.assertLessEqual(max(counts) - min(counts), 1)
+
+    def test_entire_trip_optimization_preserves_inter_day_distance(self):
+        # 370km / 332분 회귀 테스트 (서울 경복궁 - 울산 경복궁)
+        db = MagicMock()
+        mock_route = {
+            "distance_km": 370.0,
+            "duration_minutes": 332,
+            "estimated_fare": 350000,
+            "source": "api"
+        }
+
+        # 최적화 전: 1일차에 두 장소가 모두 있어서 370km 발생
+        itinerary_before = {
+            "start_date": "2026-08-25",
+            "end_date": "2026-08-26",
+            "transport_mode": "car",
+            "days": [
+                {
+                    "day_number": 1,
+                    "date": "2026-08-25",
+                    "places": [
+                        {"sequence": 1, "contentid": 126508, "title": "서울 경복궁", "mapx": 126.977, "mapy": 37.5796},
+                        {"sequence": 2, "contentid": 2733967, "title": "울산 경복궁", "mapx": 129.256, "mapy": 35.539},
+                    ],
+                },
+                {
+                    "day_number": 2,
+                    "date": "2026-08-26",
+                    "places": [],
+                },
+            ],
+        }
+
+        # 최적화 후: 1일차 서울, 2일차 울산으로 분할된 경우
+        itinerary_after = {
+            "start_date": "2026-08-25",
+            "end_date": "2026-08-26",
+            "transport_mode": "car",
+            "days": [
+                {
+                    "day_number": 1,
+                    "date": "2026-08-25",
+                    "places": [
+                        {"sequence": 1, "contentid": 126508, "title": "서울 경복궁", "mapx": 126.977, "mapy": 37.5796},
+                    ],
+                },
+                {
+                    "day_number": 2,
+                    "date": "2026-08-26",
+                    "places": [
+                        {"sequence": 1, "contentid": 2733967, "title": "울산 경복궁", "mapx": 129.256, "mapy": 35.539},
+                    ],
+                },
+            ],
+        }
+
+        with patch.object(simulation_service, "get_route_info_with_cache", return_value=mock_route):
+            res_before = simulation_service.analyze_itinerary(itinerary_before, db, include_llm=False)
+            res_after = simulation_service.analyze_itinerary(itinerary_after, db, include_llm=False)
+
+        # 1. 최적화 후 날짜가 분할되어도 실제 이동(370km / 332분)이 0으로 사라지지 않아야 함
+        # 1. 최적화 후 날짜가 분할되어도 실제 이동(370km / 332분)이 0으로 사라지지 않아야 함
+        self.assertGreater(res_after["summary"]["total_distance_km"], 0)
+        self.assertGreater(res_after["summary"]["total_transit_time_minutes"], 0)
+        self.assertEqual(res_after["summary"]["total_distance_km"], 370.0)
+        self.assertEqual(res_after["summary"]["total_transit_time_minutes"], 332)
+        # 날짜 간 이동시간(332분)이 총 소요시간(기본 체류 90분*2 + 이동 332분 = 512분)에 반영되어야 함
+        self.assertEqual(res_after["summary"]["total_duration_minutes"], 180 + 332)
+
+        # 2. 전후 비교 시 잘못된 370km 절감이 발생하지 않아야 함
+        comparison = simulation_service.build_full_comparison(res_before, res_after)
+        self.assertEqual(comparison["distance_saved_km"], 0.0)
+        self.assertEqual(comparison["transit_minutes_saved"], 0)
+
+    def test_inter_day_transit_included_in_total_duration_minutes(self):
+        """날짜가 나뉜 일정에서 290분 이동시간이 total_duration_minutes(120+290=410분)에 반영되는지 검증"""
+        db = MagicMock()
+        mock_route = {
+            "distance_km": 370.1,
+            "duration_minutes": 290,
+            "estimated_fare": 350000,
+            "source": "api"
+        }
+        itinerary = {
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-02",
+            "transport_mode": "car",
+            "days": [
+                {
+                    "day_number": 1,
+                    "date": "2026-10-01",
+                    "places": [
+                        {"sequence": 1, "contentid": 126508, "title": "서울 경복궁", "mapx": 126.977, "mapy": 37.5796, "stay_duration_minutes": 60},
+                    ],
+                },
+                {
+                    "day_number": 2,
+                    "date": "2026-10-02",
+                    "places": [
+                        {"sequence": 1, "contentid": 2733967, "title": "울산 경복궁", "mapx": 129.256, "mapy": 35.539, "stay_duration_minutes": 60},
+                    ],
+                },
+            ],
+        }
+        with patch.object(simulation_service, "get_route_info_with_cache", return_value=mock_route):
+            res = simulation_service.analyze_itinerary(itinerary, db, include_llm=False)
+
+        summary = res["summary"]
+        self.assertEqual(summary["total_distance_km"], 370.1)
+        self.assertEqual(summary["total_transit_time_minutes"], 290)
+        # 각 장소 1시간(60분) 체류 * 2곳 = 120분 + 날짜 간 이동 290분 = 410분
+        self.assertEqual(summary["total_duration_minutes"], 120 + 290)
+
+    def test_tour_api_error_does_not_leak_secret_key(self):
+        """TourAPI 및 외부 API 호출 실패 시 Secret Key 실제 값이 로그에 노출되지 않음을 검증"""
+        secret_key_mock = "SUPER_CONFIDENTIAL_TOUR_API_KEY_12345"
+        with patch.object(simulation_service, "API_KEY", secret_key_mock), \
+             patch.object(simulation_service, "load_detail_cache", return_value={}), \
+             patch.object(simulation_service._tour_session, "get", side_effect=requests.exceptions.ConnectTimeout("Connect timeout to https://apis.data.go.kr/B551011/KorService2/detailIntro2?serviceKey=" + secret_key_mock)), \
+             self.assertLogs(simulation_service.logger, level="WARNING") as log_cm:
+
+            detail = simulation_service.fetch_detail_intro(999999, "12")
+            self.assertEqual(detail, {})
+
+            # 로그에 secret_key_mock이 전혀 노출되지 않아야 함
+            for log_msg in log_cm.output:
+                self.assertNotIn(secret_key_mock, log_msg)
+
+
+class SimulationValidationTest(unittest.TestCase):
+    def test_invalid_start_date(self):
+        from schemas.simulation import SimulationRequest
+        from pydantic import ValidationError
+
+        with self.assertRaises(ValidationError):
+            SimulationRequest(
+                start_date="not-a-date",
+                end_date="2026-08-26",
+                transport_mode="car",
+                days=[{"day_number": 1, "date": "2026-08-26", "places": [{"sequence": 1, "contentid": 1, "mapx": 127.0, "mapy": 37.0}]}]
+            )
+
+    def test_invalid_end_date(self):
+        from schemas.simulation import SimulationRequest
+        from pydantic import ValidationError
+
+        with self.assertRaises(ValidationError):
+            SimulationRequest(
+                start_date="2026-08-25",
+                end_date="2026-02-30",  # invalid date
+                transport_mode="car",
+                days=[{"day_number": 1, "date": "2026-08-25", "places": [{"sequence": 1, "contentid": 1, "mapx": 127.0, "mapy": 37.0}]}]
+            )
+
+    def test_start_date_greater_than_end_date(self):
+        from schemas.simulation import SimulationRequest
+        from pydantic import ValidationError
+
+        with self.assertRaises(ValidationError):
+            SimulationRequest(
+                start_date="2026-08-30",
+                end_date="2026-08-20",
+                transport_mode="car",
+                days=[{"day_number": 1, "date": "2026-08-30", "places": [{"sequence": 1, "contentid": 1, "mapx": 127.0, "mapy": 37.0}]}]
+            )
+
+    def test_invalid_day_date(self):
+        from schemas.simulation import SimulationRequest
+        from pydantic import ValidationError
+
+        with self.assertRaises(ValidationError):
+            SimulationRequest(
+                start_date="2026-08-20",
+                end_date="2026-08-25",
+                transport_mode="car",
+                days=[{"day_number": 1, "date": "invalid-date", "places": [{"sequence": 1, "contentid": 1, "mapx": 127.0, "mapy": 37.0}]}]
+            )
+
+    def test_day_date_out_of_range(self):
+        from schemas.simulation import SimulationRequest
+        from pydantic import ValidationError
+
+        with self.assertRaises(ValidationError):
+            SimulationRequest(
+                start_date="2026-08-20",
+                end_date="2026-08-22",
+                transport_mode="car",
+                days=[{"day_number": 1, "date": "2026-08-25", "places": [{"sequence": 1, "contentid": 1, "mapx": 127.0, "mapy": 37.0}]}]
+            )
+
+    def test_empty_days(self):
+        from schemas.simulation import SimulationRequest
+        from pydantic import ValidationError
+
+        with self.assertRaises(ValidationError):
+            SimulationRequest(
+                start_date="2026-08-20",
+                end_date="2026-08-22",
+                transport_mode="car",
+                days=[]
+            )
+
+    def test_empty_places(self):
+        from schemas.simulation import SimulationRequest
+        from pydantic import ValidationError
+
+        with self.assertRaises(ValidationError):
+            SimulationRequest(
+                start_date="2026-08-20",
+                end_date="2026-08-22",
+                transport_mode="car",
+                days=[{"day_number": 1, "date": "2026-08-20", "places": []}]
+            )
+
+    def test_missing_coordinates_when_not_in_cache(self):
+        from schemas.simulation import SimulationRequest
+        from pydantic import ValidationError
+
+        with self.assertRaises(ValidationError):
+            SimulationRequest(
+                start_date="2026-08-20",
+                end_date="2026-08-22",
+                transport_mode="car",
+                days=[{"day_number": 1, "date": "2026-08-20", "places": [{"sequence": 1, "contentid": 99999999, "mapx": None, "mapy": None}]}]
+            )
 
 
 if __name__ == "__main__":

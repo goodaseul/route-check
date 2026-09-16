@@ -3,16 +3,18 @@ type SummaryPageProps = {
   searchParams: Promise<{
     date?: string | string[];
     mode?: string | string[];
+    transport?: string | string[];
   }>;
 };
 
 export default async function SummaryPage({ searchParams }: SummaryPageProps) {
-  const { date, mode } = await searchParams;
+  const { date, mode, transport } = await searchParams;
   const isConfirmed = mode === "confirmed";
   return (
     <SummaryPageClient
       isConfirmed={isConfirmed}
       date={typeof date === "string" ? date : null}
+      transport={typeof transport === "string" ? transport : null}
     />
   );
 }

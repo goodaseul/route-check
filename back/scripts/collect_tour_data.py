@@ -32,6 +32,11 @@ else:
     load_dotenv()
     logger.info("기본 load_dotenv()를 통해 환경 변수를 로드했습니다.")
 
+# Also protect standalone collector logs, before any HTTP requests.
+sys.path.insert(0, os.path.dirname(BASE_DIR))
+from core.logging_safety import install_secret_redaction
+install_secret_redaction()
+
 API_KEY = os.getenv("TOUR_API_DECODE_KEY")
 BASE_URL = "https://apis.data.go.kr/B551011/KorService2"
 
@@ -135,7 +140,7 @@ def fetch_api_data(endpoint, base_url=BASE_URL, params=None):
             return pd.DataFrame()
 
     except Exception as e:
-        logger.error(f"네트워크 또는 파싱 오류 발생 ({endpoint}): {e}")
+        logger.error("TourAPI request failed (%s): %s", endpoint, type(e).__name__)
         return pd.DataFrame()
     
     return pd.DataFrame()

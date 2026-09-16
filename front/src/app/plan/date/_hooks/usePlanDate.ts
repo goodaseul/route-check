@@ -5,10 +5,15 @@ import type { DateRange } from "@daypicker/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { usePlanScheduleStore } from "@/stores/usePlanScheduleStore";
+
 export type Transport = "car" | "public";
 
 export function usePlanDate() {
   const router = useRouter();
+  const resetSchedules = usePlanScheduleStore(
+    (state) => state.resetSchedules,
+  );
   const [selectedTransport, setSelectedTransport] = useState<Transport | null>(
     null,
   );
@@ -17,6 +22,8 @@ export function usePlanDate() {
 
   const goToSchedule = () => {
     if (!selectedTransport || !dateRange?.from) return;
+
+    resetSchedules();
 
     const searchParams = new URLSearchParams({
       transport: selectedTransport,

@@ -36,6 +36,7 @@ type PlanScheduleState = {
     oldIndex: number,
     newIndex: number,
   ) => void;
+  invalidateAnalysis: () => void;
   resetSchedules: () => void;
   setAnalysisResult: (
     result: import("@/api/types/simulation").SimulationResponse | null,
@@ -89,6 +90,15 @@ export const usePlanScheduleStore = create<PlanScheduleState>()(
       analysisComparison: null,
       lastAppliedSuggestionId: null,
 
+      invalidateAnalysis: () =>
+        set({
+          analysisResult: null,
+          analysisRequest: null,
+          previousAnalysisResult: null,
+          analysisComparison: null,
+          lastAppliedSuggestionId: null,
+        }),
+
       addScheduleItems: (day, items) => {
         set((state) => {
           const dayItems = state.schedules[day] || [];
@@ -100,6 +110,11 @@ export const usePlanScheduleStore = create<PlanScheduleState>()(
               ...state.schedules,
               [day]: [...dayItems, ...newItems],
             },
+            analysisResult: null,
+            analysisRequest: null,
+            previousAnalysisResult: null,
+            analysisComparison: null,
+            lastAppliedSuggestionId: null,
           };
         });
       },
@@ -112,6 +127,11 @@ export const usePlanScheduleStore = create<PlanScheduleState>()(
               (item) => item.id !== id,
             ),
           },
+          analysisResult: null,
+          analysisRequest: null,
+          previousAnalysisResult: null,
+          analysisComparison: null,
+          lastAppliedSuggestionId: null,
         }));
       },
 
@@ -127,6 +147,11 @@ export const usePlanScheduleStore = create<PlanScheduleState>()(
               ...state.schedules,
               [day]: items,
             },
+            analysisResult: null,
+            analysisRequest: null,
+            previousAnalysisResult: null,
+            analysisComparison: null,
+            lastAppliedSuggestionId: null,
           };
         });
       },

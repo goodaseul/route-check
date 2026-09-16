@@ -1,0 +1,18 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.DS_Store
+
+# Nested Python caches can retain removed credentials in bytecode.
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.env
+.env.*
+**/.env
+**/.env.*

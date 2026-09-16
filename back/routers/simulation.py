@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.orm import Session
+from core.logging_safety import redact_secrets
 from db.database import get_db
 from schemas.simulation import (
     TransitInfoRequest, TransitInfoResponse,
@@ -70,7 +71,7 @@ async def get_transit_info(request: TransitInfoRequest, db: Session = Depends(ge
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"이동 경로 및 소요 시간 정보 연산 중 오류가 발생했습니다: {str(e)}"
+            detail="이동 경로 및 소요 시간 정보 연산 중 오류가 발생했습니다."
         )
 
 @router.post("/simulation/analyze", response_model=SimulationResponse, status_code=status.HTTP_200_OK)
@@ -83,10 +84,17 @@ async def analyze_travel_itinerary(request: SimulationRequest, db: Session = Dep
         itinerary_dict = request.model_dump()
         analysis_result = analyze_itinerary(itinerary_dict, db)
         return SimulationResponse(**analysis_result)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=redact_secrets(str(exc)),
+        ) from exc
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"여행 일정을 시뮬레이션 분석하는 중 오류가 발생했습니다: {str(e)}"
+            detail="여행 일정을 시뮬레이션 분석하는 중 오류가 발생했습니다."
         )
 
 
@@ -105,12 +113,12 @@ async def apply_reorder(
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+            detail=redact_secrets(str(exc)),
         ) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"순서 변경 제안을 적용하는 중 오류가 발생했습니다: {str(exc)}",
+            detail="순서 변경 제안을 적용하는 중 오류가 발생했습니다.",
         ) from exc
 
 
@@ -129,12 +137,12 @@ async def apply_transport(
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+            detail=redact_secrets(str(exc)),
         ) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"이동수단 변경 제안을 적용하는 중 오류가 발생했습니다: {str(exc)}",
+            detail="이동수단 변경 제안을 적용하는 중 오류가 발생했습니다.",
         ) from exc
 
 
@@ -151,11 +159,11 @@ async def apply_time(
     try:
         return apply_time_suggestion(request.model_dump(), db)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=redact_secrets(str(exc))) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"시간 조정 제안을 적용하는 중 오류가 발생했습니다: {str(exc)}",
+            detail="시간 조정 제안을 적용하는 중 오류가 발생했습니다.",
         ) from exc
 
 
@@ -172,9 +180,9 @@ async def apply_trip(
     try:
         return apply_trip_suggestion(request.model_dump(), db)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=redact_secrets(str(exc))) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"전체 여행 제안을 적용하는 중 오류가 발생했습니다: {str(exc)}",
+            detail="전체 여행 제안을 적용하는 중 오류가 발생했습니다.",
         ) from exc

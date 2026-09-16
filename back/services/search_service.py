@@ -1,3 +1,4 @@
+import logging
 import os
 import json
 import requests
@@ -5,14 +6,22 @@ import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 API_KEY = os.getenv("TOUR_API_DECODE_KEY")
 BASE_URL = "https://apis.data.go.kr/B551011/KorService2"
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+_session = requests.Session()
+_session.headers.update({"User-Agent": "Mozilla/5.0 (compatible; RouteCheck/1.0)"})
+
 
 def fetch_api_data(endpoint: str, params: dict = None) -> tuple[pd.DataFrame, int]:
+    if not API_KEY:
+        logger.warning("TourAPI %s request skipped: TOUR_API_DECODE_KEY not set", endpoint)
+        return pd.DataFrame(), 0
+
     url = f"{BASE_URL}/{endpoint}"
     default_params = {
         "serviceKey": API_KEY,
@@ -24,9 +33,10 @@ def fetch_api_data(endpoint: str, params: dict = None) -> tuple[pd.DataFrame, in
         default_params.update(params)
         
     try:
-        response = requests.get(url, params=default_params, timeout=10)
+        response = _session.get(url, params=default_params, timeout=10)
 
         if response.status_code != 200:
+            logger.warning("TourAPI %s responded with status %s", endpoint, response.status_code)
             return pd.DataFrame(), 0
         
         res_json = response.json()
@@ -45,7 +55,8 @@ def fetch_api_data(endpoint: str, params: dict = None) -> tuple[pd.DataFrame, in
                 return pd.DataFrame(item_list), total_count
             return pd.DataFrame(), total_count
         return pd.DataFrame(), 0
-    except Exception:
+    except Exception as e:
+        logger.warning("TourAPI %s request failed: %s", endpoint, type(e).__name__)
         return pd.DataFrame(), 0
 
 def get_unified_search(keyword: str, num_of_rows: int = 100, page_no: int = 1) -> tuple[list, int]:
