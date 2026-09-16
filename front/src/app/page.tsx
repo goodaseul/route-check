@@ -17,6 +17,7 @@ export default function page() {
             bg-[url('/images/dashboard/bg.png')]
             bg-size-[100%_auto]
             bg-position-[center_90%]
+            pt-16
             "
         >
           <section className="text-center flex flex-col gap-3">

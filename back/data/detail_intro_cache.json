@@ -702,5 +702,24 @@
     "chkbabycarriage": "",
     "chkpet": "",
     "chkcreditcard": ""
+  },
+  "2783747": {
+    "contentid": "2783747",
+    "contenttypeid": "12",
+    "heritage1": "0",
+    "heritage2": "0",
+    "heritage3": "0",
+    "infocenter": "052-264-0077",
+    "opendate": "",
+    "restdate": "연중무휴",
+    "expguide": "",
+    "expagerange": "",
+    "accomcount": "",
+    "useseason": "",
+    "usetime": "일출~17:00※ 자세한 사항은 전화문의 요망",
+    "parking": "가능",
+    "chkbabycarriage": "",
+    "chkpet": "",
+    "chkcreditcard": ""
   }
 }
