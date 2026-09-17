@@ -25,54 +25,53 @@ export default function RoutePreviewView({
   const isFinalized = isPerfectScore || isConfirmed;
 
   return (
-    <section className="pt-14 pb-6">
-      <TitleSm>이동 미리보기</TitleSm>
-      <div className="mt-6 overflow-hidden rounded-t-card bg-semantic-300">
-        <div className="relative h-52">
-          {positions.length > 0 ? (
-            <KakaoMapScriptProvider>
-              <RouteMap positions={positions} />
-            </KakaoMapScriptProvider>
-          ) : (
-            <div className="center h-full px-6 text-center text-b3 text-semantic-600">
-              좌표가 있는 장소를 추가하면 이동 경로가 표시돼요.
-            </div>
-          )}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-linear-to-b from-transparent to-semantic-100"
-          />
+    <>
+      <section className="pt-14 pb-6">
+        <TitleSm>이동 미리보기</TitleSm>
+        <div className="mt-6 overflow-hidden rounded-card bg-semantic-300">
+          <div className="relative h-52">
+            {positions.length > 0 ? (
+              <KakaoMapScriptProvider>
+                <RouteMap positions={positions} />
+              </KakaoMapScriptProvider>
+            ) : (
+              <div className="center h-full px-6 text-center text-b3 text-semantic-600">
+                좌표가 있는 장소를 추가하면 이동 경로가 표시돼요.
+              </div>
+            )}
+          </div>
         </div>
-        <BottomActionBar
-          className="static p-0"
-          secondaryAction={
-            isFinalized
-              ? {
-                  label: "일정 다시 짜기",
-                  buttonBg: "white",
-                  onClick: onEditSchedule,
-                }
-              : {
-                  label: "이대로 진행",
-                  buttonBg: "white",
-                  onClick: onContinue,
-                }
-          }
-          primaryAction={
-            isFinalized
-              ? {
-                  label: "저장하기",
-                  buttonBg: "blue",
-                  onClick: onSave,
-                }
-              : {
-                  label: "제안 보기",
-                  buttonBg: "blue",
-                  onClick: onViewSuggestion,
-                }
-          }
-        />
-      </div>
-    </section>
+      </section>
+      <BottomActionBar
+        className="sticky z-30 bottom-0  mt-auto  p-0 pt-4 pb-6 "
+        withTopGradient={true}
+        secondaryAction={
+          isFinalized
+            ? {
+                label: "일정 다시 짜기",
+                buttonBg: "white",
+                onClick: onEditSchedule,
+              }
+            : {
+                label: "이대로 진행",
+                buttonBg: "white",
+                onClick: onContinue,
+              }
+        }
+        primaryAction={
+          isFinalized
+            ? {
+                label: "저장하기",
+                buttonBg: "blue",
+                onClick: onSave,
+              }
+            : {
+                label: "제안 보기",
+                buttonBg: "blue",
+                onClick: onViewSuggestion,
+              }
+        }
+      />
+    </>
   );
 }
