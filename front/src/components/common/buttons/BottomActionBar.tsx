@@ -26,6 +26,7 @@ export default function BottomActionBar({
     buttonBg: primaryButtonBg = "blue",
     ...primaryButtonProps
   } = primaryAction;
+
   const {
     label: secondaryLabel,
     buttonBg: secondaryButtonBg = "white",
@@ -44,14 +45,16 @@ export default function BottomActionBar({
       {withTopGradient && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-14 right-0 left-0 h-14 bg-linear-to-b from-transparent to-semantic-100"
+          className="pointer-events-none absolute -top-8 right-0 left-0 h-8 bg-linear-to-b from-transparent to-semantic-100"
         />
       )}
+
       {secondaryAction && (
         <Button buttonBg={secondaryButtonBg} {...secondaryButtonProps}>
           {secondaryLabel}
         </Button>
       )}
+
       <Button buttonBg={primaryButtonBg} {...primaryButtonProps}>
         {primaryLabel}
       </Button>
